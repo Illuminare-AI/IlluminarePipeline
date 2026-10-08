@@ -24,6 +24,18 @@ class Deps:
 
 def build_deps(settings: Settings | None = None) -> Deps:
     s = settings or load_settings()
+
+    store: Store
+    if s.postgres_url:
+        from .store.postgres import PostgresStore
+
+        store = PostgresStore(
+            db_url=s.postgres_url,
+            phash_max_distance=s.phash_max_distance,
+        )
+    else:
+        store = InMemoryStore(phash_max_distance=s.phash_max_distance)
+
     if s.llm_backend == "anthropic":
         from .llm.anthropic_llm import AnthropicLLM
 
@@ -32,11 +44,13 @@ def build_deps(settings: Settings | None = None) -> Deps:
         from .llm.fake import FakeLLM
 
         llm = FakeLLM()
+
     factcheck: FactCheckClient = (
         GoogleFactCheckClient(s.factcheck_api_key, s.factcheck_url)
         if s.factcheck_api_key
         else NullFactCheckClient()
     )
+
     detector: Detector = (
         WinstonDetector(
             api_key=s.detector_api_key,
@@ -47,9 +61,10 @@ def build_deps(settings: Settings | None = None) -> Deps:
         if s.detector_api_key
         else NullDetector()
     )
+
     return Deps(
         settings=s,
-        store=InMemoryStore(phash_max_distance=s.phash_max_distance),
+        store=store,
         llm=llm,
         factcheck=factcheck,
         detector=detector,

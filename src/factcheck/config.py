@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     trace_dir: str = "traces"
     replay_mode: bool = False
+    postgres_url: str | None = None
 
 
 def load_settings() -> Settings:

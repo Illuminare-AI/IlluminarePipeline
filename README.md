@@ -17,7 +17,8 @@ src/factcheck/
   stages/          One module per stage (s0_fingerprint ... s6_assemble) + runner.py
   llm/             LLM protocol, prompts.py, anthropic_llm.py, fake.py
   services/        fingerprint, factcheck_api, detector, c2pa adapters
-  store/memory.py  In-memory Store; the Postgres implementation replaces it
+  store/memory.py  In-memory Store (default when POSTGRES_URL is empty)
+  store/postgres.py  Postgres + pgvector Store: claims, verdicts, media, media_claims tables
 tests/             Offline tests using FakeLLM and static service doubles
 eval/              cases.jsonl + run_eval.py test harness
 ```
@@ -53,12 +54,26 @@ marked `skipped` on the card rather than failing.
 
 Per-claim stage statuses are merged into one entry per stage: worst state wins, times are summed.
 
-## Plugging in the Postgres store
+## Postgres store
 
-Implement the three async methods on `Store` in `models.py` and pass the instance to
-`Deps.store`. `find_media` should return rows whose phash is within `PHASH_MAX_DISTANCE` bits.
-`find_claims` should return the top-k rows by embedding similarity; the pipeline confirms each
-candidate with an LLM before reusing anything.
+```bash
+pip install -e ".[dev,db]" && docker compose up -d
+# in .env: POSTGRES_URL=postgresql+asyncpg://factcheck:factcheck@localhost:5433/factcheck
+```
+
+Tables are created on API startup (`PostgresStore.init_db`). Data model:
+
+| Table | One row per | Holds |
+|---|---|---|
+| `claims` | distinct claim (case/whitespace-insensitive) | text, 384-d embedding, full-text index, first/last seen |
+| `verdicts` | claim per check | label, explanation, sources, disputed spans, evidence origin, persuasion tags, timestamp |
+| `media` | checked image | perceptual hash, sha256 file hash, caption, origin signals |
+| `media_claims` | image-claim link | which claims an image was checked against |
+
+A check is the set of rows sharing a `check_id`; cards are rebuilt from them. Images are never
+stored, and neither are stage timings or raw OCR text. `find_media` matches phash by Hamming
+distance; `find_claims` ranks by embedding and returns, per claim, the newest verdict that had
+evidence. `find_claims_by_keyword` is full-text search and is not part of the `Store` protocol.
 
 ## Eval harness
 
