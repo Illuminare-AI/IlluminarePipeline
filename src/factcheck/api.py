@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
@@ -24,8 +25,17 @@ class CheckJson(BaseModel):
 
 
 def create_app(deps: Deps | None = None) -> FastAPI:
-    app = FastAPI(title="Fact-check pipeline", version="0.1.0")
-    app.state.deps = deps or build_deps()
+    resolved = deps or build_deps()
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        init_db = getattr(resolved.store, "init_db", None)
+        if init_db is not None:
+            await init_db()
+        yield
+
+    app = FastAPI(title="Fact-check pipeline", version="0.1.0", lifespan=lifespan)
+    app.state.deps = resolved
 
     @app.get("/health")
     async def health():
