@@ -25,6 +25,13 @@ ImageHash>=4.3
 # The import is guarded, so the pipeline degrades gracefully without it.
 c2pa-python>=0.6
 
+# Optional: Postgres store with embedding search (src/factcheck/store/postgres.py).
+# Matches the "db" extra in pyproject.toml. sentence-transformers pulls in torch, so install
+# this block only where the Postgres store is used. tests/test_postgres_store.py needs it to import.
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29
+sentence-transformers>=2.2
+
 # Development and test tooling (tests/, eval/)
 pytest>=8
 pytest-asyncio>=0.23

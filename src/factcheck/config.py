@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     phash_max_distance: int = 10
 
     stage_timeout: float = 10.0
-    web_stage_timeout: float = 45.0
+    web_stage_timeout: float = 90.0
 
     trace_dir: str = "traces"
     replay_mode: bool = False

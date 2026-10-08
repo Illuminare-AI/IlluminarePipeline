@@ -10,6 +10,7 @@ If the OCR text is missing or empty, work from the caption and the image alone.
 
 Return:
 - image_description: one sentence describing what the image shows. Do not speculate about authenticity.
+  Return an empty string if no image was provided.
 - claims: up to three factual claims that could be checked against public evidence. Draw them from the
   caption and the OCR text. Rewrite each as a standalone sentence with names, dates, places and numbers
   made explicit. Do not include opinions, jokes, questions, predictions or value judgements. An empty

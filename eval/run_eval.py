@@ -3,8 +3,9 @@
     python eval/run_eval.py                 # uses LLM_BACKEND from .env (fake by default)
     LLM_BACKEND=anthropic python eval/run_eval.py
 
-Fields per case: id, caption, image (path relative to eval/), expected_label (label of the first
-claim, or null for "nothing checkable"), expected_origin, expected_tactics, must_not_accuse.
+Fields per case: id, caption, ocr_text, image (path relative to eval/), expected_label (label of the
+first claim, null for "nothing checkable", or a list of acceptable labels so one case can hold for
+both the fake and the live backend), expected_origin, expected_tactics, must_not_accuse.
 """
 from __future__ import annotations
 
@@ -35,8 +36,10 @@ async def main() -> int:
         card = await check(post, deps)
         label = card.claims[0].label if card.claims else None
         problems = []
-        if label != case.get("expected_label"):
-            problems.append(f"label {label} != {case.get('expected_label')}")
+        expected = case.get("expected_label")
+        acceptable = expected if isinstance(expected, list) else [expected]
+        if label not in acceptable:
+            problems.append(f"label {label} != {expected}")
         if case.get("expected_origin") and card.origin.status != case["expected_origin"]:
             problems.append(f"origin {card.origin.status} != {case['expected_origin']}")
         got_tactics = {t.tactic for t in card.persuasion}
