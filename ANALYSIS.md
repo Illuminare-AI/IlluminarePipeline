@@ -28,8 +28,8 @@
 5. **Detectors are unreliable on platform-processed images, and the false-accusation cost is the
    highest in the project.** The scaffold uses a high threshold (0.9), names the detector, and never
    lets the origin result touch the claim label. The "no signal found" note explicitly says it is not
-   verification. The detector request and response format is a placeholder until the provider is
-   confirmed; only `HttpDetector._parse` should need to change.
+   verification. The detector is Winston AI (`WinstonDetector`); the emitted score is its `ai_probability`,
+   not the 0-100 human-probability `score` field.
 
 6. **C2PA will almost never be present on social media images.** Platforms strip metadata on
    upload. Expect credentials only on demo images you generate yourself with a tool that signs
@@ -133,7 +133,6 @@ threshold change, since several of these fixes trade one error type for another.
 ## Not yet implemented (deliberate stubs)
 
 - Real Postgres store (teammate).
-- Real detector response parsing (waiting on provider docs).
 - Embedding-based `find_claims`; the in-memory store uses token overlap.
 - LettuceDetect as an alternative self-checker.
 - Per-claim concurrency and a rate limiter for the LLM client.

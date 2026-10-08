@@ -16,9 +16,11 @@ class Settings(BaseSettings):
     factcheck_api_key: str | None = None
     factcheck_url: str = "https://factchecktools.googleapis.com/v1alpha1/claims:search"
 
-    detector_url: str | None = None
+    # Winston AI image detection. The detector is enabled when the API key is set.
     detector_api_key: str | None = None
-    detector_threshold: float = 0.9
+    detector_url: str = "https://api.gowinston.ai/v2/image-detection"
+    detector_version: str | None = None  # Winston model version (e.g. "5"); None = API default
+    detector_threshold: float = 0.9  # on ai_probability in [0, 1]
 
     phash_max_distance: int = 10
 

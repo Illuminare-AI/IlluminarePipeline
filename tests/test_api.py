@@ -17,3 +17,21 @@ def test_multipart_and_json(deps):
     assert r2.json()["from_memory"] is True
     assert client.get(f"/checks/{card['check_id']}/trace").status_code == 200
     assert client.post("/check", json={}).status_code == 400
+
+
+def test_ocr_text_accepted_on_both_content_types(deps):
+    client = TestClient(create_app(deps))
+    ocr = "Share before it's deleted! Egg prices rose 5% in March 2025."
+    r = client.post(
+        "/check",
+        files={"image": ("a.png", make_image(3), "image/png")},
+        data={"caption": "look", "ocr_text": ocr},
+    )
+    assert r.status_code == 200
+    assert r.json()["extraction"]["ocr_text"] == ocr
+    r2 = client.post(
+        "/check",
+        json={"image_base64": base64.b64encode(make_image(3)).decode(), "caption": "look", "ocr_text": ocr},
+    )
+    assert r2.status_code == 200
+    assert r2.json()["extraction"]["ocr_text"] == ocr

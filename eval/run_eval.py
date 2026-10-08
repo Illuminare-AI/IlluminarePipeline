@@ -31,7 +31,8 @@ async def main() -> int:
             continue
         case = json.loads(line)
         image = (HERE / case["image"]).read_bytes() if case.get("image") else None
-        card = await check(Post(image=image, caption=case.get("caption")), deps)
+        post = Post(image=image, caption=case.get("caption"), ocr_text=case.get("ocr_text"))
+        card = await check(post, deps)
         label = card.claims[0].label if card.claims else None
         problems = []
         if label != case.get("expected_label"):

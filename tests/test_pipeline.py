@@ -160,3 +160,14 @@ async def test_replay_mode_serves_saved_card(deps):
     assert again.check_id == first.check_id
     assert "replay" in again.stages
     assert deps.llm.calls == []
+
+
+async def test_frontend_ocr_text_feeds_extraction(deps):
+    """OCR comes from the frontend: it is carried onto the card and used for claims and tactic phrases."""
+    ocr = "Share before it's deleted! Egg prices rose 5% in March 2025."
+    card = await check(Post(image=make_image(9), caption="look at this", ocr_text=ocr), deps)
+    assert card.extraction is not None
+    assert card.extraction.ocr_text == ocr
+    assert any("Egg prices rose 5%" in c for c in card.extraction.claims)
+    assert [t.tactic for t in card.persuasion] == ["urgency"]
+    assert card.persuasion[0].phrase in ocr

@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field
 class Post(BaseModel):
     image: bytes | None = None
     caption: str | None = None
+    ocr_text: str | None = None
+    """Text in the image, transcribed by the frontend. The pipeline does not run OCR itself."""
     source_url: str | None = None
 
     def text(self) -> str:
@@ -37,13 +39,18 @@ class Tactic(BaseModel):
     phrase: str = Field(description="Exact phrase from the caption or OCR text that triggered the tag")
 
 
-class Extraction(BaseModel):
-    """Stage 1 structured output."""
+class ExtractionOutput(BaseModel):
+    """What the LLM returns in stage 1. OCR is supplied by the frontend, so it is not asked for."""
 
-    ocr_text: str = ""
     image_description: str = ""
     claims: list[str] = Field(default_factory=list, max_length=3)
     persuasion: list[Tactic] = Field(default_factory=list)
+
+
+class Extraction(ExtractionOutput):
+    """Stage 1 result as stored on the card: the LLM output plus the frontend's OCR text."""
+
+    ocr_text: str = ""
 
 
 class Source(BaseModel):

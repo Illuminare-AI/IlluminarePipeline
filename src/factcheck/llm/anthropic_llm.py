@@ -10,7 +10,13 @@ import base64
 
 import anthropic
 
-from ..models import Extraction, FactCheckDecision, SameClaimVerdict, SupportCheck, WebEvidence
+from ..models import (
+    ExtractionOutput,
+    FactCheckDecision,
+    SameClaimVerdict,
+    SupportCheck,
+    WebEvidence,
+)
 from ..services.factcheck_api import ClaimReview
 from . import prompts
 from .base import WebSearchOutcome
@@ -34,7 +40,7 @@ class AnthropicLLM:
             raise RuntimeError("model refused the request")
         return response.parsed_output
 
-    async def extract(self, image, media_type, caption) -> Extraction:
+    async def extract(self, image, media_type, caption, ocr_text) -> ExtractionOutput:
         content: list[dict] = []
         if image is not None:
             content.append(
@@ -48,7 +54,10 @@ class AnthropicLLM:
                 }
             )
         content.append({"type": "text", "text": f"Caption:\n{caption or '(none)'}"})
-        return await self._parse(prompts.EXTRACT_SYSTEM, content, Extraction, effort="medium")
+        content.append(
+            {"type": "text", "text": f"OCR text (from the client):\n{ocr_text or '(none)'}"}
+        )
+        return await self._parse(prompts.EXTRACT_SYSTEM, content, ExtractionOutput, effort="medium")
 
     async def same_claim(self, a: str, b: str) -> SameClaimVerdict:
         return await self._parse(

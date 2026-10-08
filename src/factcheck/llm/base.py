@@ -4,7 +4,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from ..models import Extraction, FactCheckDecision, SameClaimVerdict, SupportCheck, WebEvidence
+from ..models import (
+    ExtractionOutput,
+    FactCheckDecision,
+    SameClaimVerdict,
+    SupportCheck,
+    WebEvidence,
+)
 from ..services.factcheck_api import ClaimReview
 
 
@@ -17,8 +23,12 @@ class WebSearchOutcome:
 
 class LLM(Protocol):
     async def extract(
-        self, image: bytes | None, media_type: str | None, caption: str | None
-    ) -> Extraction: ...
+        self,
+        image: bytes | None,
+        media_type: str | None,
+        caption: str | None,
+        ocr_text: str | None,
+    ) -> ExtractionOutput: ...
 
     async def same_claim(self, a: str, b: str) -> SameClaimVerdict: ...
 

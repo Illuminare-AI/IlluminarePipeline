@@ -32,8 +32,11 @@ cp .env.example .env            # LLM_BACKEND=fake works with no keys
 curl -F image=@photo.jpg -F caption="Share before it's deleted!" localhost:8000/check
 ```
 
+OCR is the frontend's job: pass the transcribed image text as `ocr_text` (multipart field or JSON key)
+and stage 1 feeds it to the model instead of asking the model to read the image.
+
 Set `LLM_BACKEND=anthropic` and `ANTHROPIC_API_KEY` for real calls. Add `FACTCHECK_API_KEY`
-to enable stage 3 and `DETECTOR_URL` to enable the detector. Without them those stages are
+to enable stage 3 and `DETECTOR_API_KEY` (Winston AI) to enable the detector. Without them those stages are
 marked `skipped` on the card rather than failing.
 
 ## Stage map

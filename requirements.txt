@@ -1,0 +1,31 @@
+# Runtime dependencies for the fact-check pipeline and API.
+# Derived from imports in src/, tests/ and eval/ plus pyproject.toml.
+# Install with: pip install -r requirements.txt
+
+# LLM backend (src/factcheck/llm/anthropic_llm.py)
+anthropic>=1.0
+
+# HTTP API (src/factcheck/api.py); python-multipart is needed for File/Form uploads
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+# Models and settings (src/factcheck/models.py, config.py)
+pydantic>=2.7
+pydantic-settings>=2.3
+
+# Outbound HTTP for external services (src/factcheck/services/)
+httpx>=0.27
+
+# Image fingerprinting (src/factcheck/services/fingerprint.py)
+Pillow>=10.0
+ImageHash>=4.3
+
+# Optional: Content Credentials verification (src/factcheck/services/c2pa.py).
+# The import is guarded, so the pipeline degrades gracefully without it.
+c2pa-python>=0.6
+
+# Development and test tooling (tests/, eval/)
+pytest>=8
+pytest-asyncio>=0.23
+ruff>=0.5

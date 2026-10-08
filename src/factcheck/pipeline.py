@@ -54,7 +54,9 @@ async def check(post: Post, deps: Deps) -> Card:
     # Stage 1: extract
     ex, st = await run_stage("extract", s1_extract.extract(post, deps.llm), s.stage_timeout)
     card.stages["extract"] = st
-    tracer.record("extract", input={"caption": post.caption}, output=ex, error=st.detail)
+    tracer.record(
+        "extract", input={"caption": post.caption, "ocr_text": post.ocr_text}, output=ex, error=st.detail
+    )
 
     # Stage 5 starts now so it overlaps with everything claim-related
     origin_task = asyncio.create_task(

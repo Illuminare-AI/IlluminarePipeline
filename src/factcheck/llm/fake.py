@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 
 from ..models import (
-    Extraction,
+    ExtractionOutput,
     FactCheckDecision,
     SameClaimVerdict,
     Source,
@@ -34,9 +34,9 @@ class FakeLLM:
     def set_web_result(self, claim_keyword: str, outcome: WebSearchOutcome) -> None:
         self.web_results[claim_keyword.lower()] = outcome
 
-    async def extract(self, image, media_type, caption) -> Extraction:
+    async def extract(self, image, media_type, caption, ocr_text) -> ExtractionOutput:
         self.calls.append("extract")
-        text = caption or ""
+        text = "\n".join(part for part in (caption, ocr_text) if part)
         claims: list[str] = []
         for sentence in re.split(r"(?<=[.!?])\s+", text):
             s = sentence.strip()
@@ -51,8 +51,7 @@ class FakeLLM:
                 if idx >= 0:
                     tags.append(Tactic(tactic=tactic, phrase=text[idx : idx + len(cue)]))
                     break
-        return Extraction(
-            ocr_text="",
+        return ExtractionOutput(
             image_description="a photo" if image else "",
             claims=claims[:3],
             persuasion=tags,

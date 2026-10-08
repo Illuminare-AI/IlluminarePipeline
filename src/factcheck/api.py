@@ -1,4 +1,7 @@
-"""FastAPI app. POST /check accepts multipart (image + caption) or JSON with base64 image."""
+"""FastAPI app. POST /check accepts multipart (image + caption + ocr_text) or JSON with base64 image.
+
+OCR is done by the frontend; send the transcribed image text as `ocr_text`.
+"""
 from __future__ import annotations
 
 import base64
@@ -20,6 +23,7 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 class CheckJson(BaseModel):
     image_base64: str | None = None
     caption: str | None = None
+    ocr_text: str | None = None
     source_url: str | None = None
 
 
@@ -37,15 +41,18 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         request: Request,
         image: UploadFile | None = File(default=None),
         caption: str | None = Form(default=None),
+        ocr_text: str | None = Form(default=None),
         source_url: str | None = Form(default=None),
     ):
         if request.headers.get("content-type", "").startswith("application/json"):
             body = CheckJson.model_validate(await request.json())
             data = base64.b64decode(body.image_base64) if body.image_base64 else None
-            post = Post(image=data, caption=body.caption, source_url=body.source_url)
+            post = Post(
+                image=data, caption=body.caption, ocr_text=body.ocr_text, source_url=body.source_url
+            )
         else:
             data = await image.read() if image is not None else None
-            post = Post(image=data or None, caption=caption, source_url=source_url)
+            post = Post(image=data or None, caption=caption, ocr_text=ocr_text, source_url=source_url)
         if post.image and len(post.image) > MAX_IMAGE_BYTES:
             raise HTTPException(413, "image too large")
         if not post.image and not (post.caption or "").strip():
