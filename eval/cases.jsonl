@@ -1,0 +1,3 @@
+{"id": "opinion", "caption": "lol what a day?", "expected_label": null, "expected_origin": "unavailable"}
+{"id": "false-urgent", "caption": "Share before it's deleted! The Eiffel Tower was sold for scrap in 2024.", "image": "cases/gradient.png", "expected_label": "not_enough_evidence", "expected_origin": "no_signal_found", "expected_tactics": ["urgency"]}
+{"id": "authentic", "caption": "Sunset over the bay tonight.", "image": "cases/gradient.png", "expected_label": null, "expected_origin": "no_signal_found", "must_not_accuse": true}

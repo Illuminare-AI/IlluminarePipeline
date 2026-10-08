@@ -1,0 +1,106 @@
+"""Deterministic fake LLM for tests, offline development and the eval harness.
+
+Behaviour is driven by simple keyword rules so tests can set up scenarios without a network.
+"""
+from __future__ import annotations
+
+import re
+
+from ..models import (
+    Extraction,
+    FactCheckDecision,
+    SameClaimVerdict,
+    Source,
+    SupportCheck,
+    Tactic,
+    WebEvidence,
+)
+from ..services.factcheck_api import ClaimReview
+from .base import WebSearchOutcome
+
+_TACTIC_CUES = {
+    "urgency": ["share before", "act now", "right now", "immediately", "before it's deleted"],
+    "authority": ["scientists say", "experts say", "doctors confirm", "officials"],
+    "fear": ["dangerous", "will kill", "deadly", "warning"],
+    "promised_reward": ["win", "free money", "giveaway", "get rich"],
+}
+
+
+class FakeLLM:
+    def __init__(self) -> None:
+        self.web_results: dict[str, WebSearchOutcome] = {}
+        self.calls: list[str] = []
+
+    def set_web_result(self, claim_keyword: str, outcome: WebSearchOutcome) -> None:
+        self.web_results[claim_keyword.lower()] = outcome
+
+    async def extract(self, image, media_type, caption) -> Extraction:
+        self.calls.append("extract")
+        text = caption or ""
+        claims: list[str] = []
+        for sentence in re.split(r"(?<=[.!?])\s+", text):
+            s = sentence.strip()
+            if not s or s.endswith("?") or s.lower().startswith(("i think", "lol", "imo")):
+                continue
+            if re.search(r"\d|\b(is|are|was|were|has|have|will)\b", s):
+                claims.append(s.rstrip("!"))
+        tags = []
+        for tactic, cues in _TACTIC_CUES.items():
+            for cue in cues:
+                idx = text.lower().find(cue)
+                if idx >= 0:
+                    tags.append(Tactic(tactic=tactic, phrase=text[idx : idx + len(cue)]))
+                    break
+        return Extraction(
+            ocr_text="",
+            image_description="a photo" if image else "",
+            claims=claims[:3],
+            persuasion=tags,
+        )
+
+    async def same_claim(self, a: str, b: str) -> SameClaimVerdict:
+        self.calls.append("same_claim")
+        norm = lambda s: re.sub(r"[^a-z0-9 ]", "", s.lower()).strip()
+        return SameClaimVerdict(same=norm(a) == norm(b), reason="exact normalised match")
+
+    async def match_fact_checks(self, claim, reviews: list[ClaimReview]) -> FactCheckDecision:
+        self.calls.append("match_fact_checks")
+        for i, r in enumerate(reviews):
+            rating = r.rating.lower()
+            if "false" in rating:
+                return FactCheckDecision(matches=True, review_index=i, label="refuted")
+            if "true" in rating:
+                return FactCheckDecision(matches=True, review_index=i, label="supported")
+            if "misleading" in rating or "context" in rating:
+                return FactCheckDecision(matches=True, review_index=i, label="missing_context")
+        return FactCheckDecision(matches=False)
+
+    async def web_evidence(self, claim: str) -> WebSearchOutcome:
+        self.calls.append("web_evidence")
+        for key, outcome in self.web_results.items():
+            if key in claim.lower():
+                return outcome
+        return WebSearchOutcome(
+            evidence=WebEvidence(
+                label="not_enough_evidence",
+                explanation="No reliable sources were found for this claim.",
+                sources=[],
+                disputed_spans=[],
+            ),
+            returned_urls=set(),
+        )
+
+    async def check_support(self, sentences, quotes) -> SupportCheck:
+        self.calls.append("check_support")
+        # A sentence is "supported" if it shares a word of 5+ letters with any quote, or
+        # if it is a hedge sentence about evidence.
+        out = []
+        qwords = set(re.findall(r"[a-z]{5,}", " ".join(quotes).lower()))
+        for s in sentences:
+            words = set(re.findall(r"[a-z]{5,}", s.lower()))
+            out.append(bool(words & qwords) or "evidence" in s.lower() or not quotes)
+        return SupportCheck(supported=out)
+
+
+def source(url: str, quote: str, title: str = "", publisher: str = "") -> Source:
+    return Source(url=url, quote=quote, title=title, publisher=publisher)
