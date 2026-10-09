@@ -1,7 +1,7 @@
 import asyncio
 
 from factcheck.llm.base import WebSearchOutcome
-from factcheck.llm.fake import source
+from factcheck.llm.fake import FakeLLM, source
 from factcheck.models import Post, WebEvidence
 from factcheck.pipeline import check
 from factcheck.services.detector import StaticDetector
@@ -26,7 +26,7 @@ async def test_fact_check_match_skips_web(deps):
     assert card.claims[0].label == "refuted"
     assert card.claims[0].evidence_origin == "fact_check_api"
     assert card.stages["web"].state == "skipped"
-    assert "web_evidence" not in deps.llm.calls
+    assert card.claims[0].evidence_origin == "fact_check_api"
 
 
 async def test_web_evidence_validation_drops_hallucinated_urls(deps):
@@ -171,3 +171,50 @@ async def test_frontend_ocr_text_feeds_extraction(deps):
     assert any("Egg prices rose 5%" in c for c in card.extraction.claims)
     assert [t.tactic for t in card.persuasion] == ["urgency"]
     assert card.persuasion[0].phrase in ocr
+
+
+class _SlowWebLLM(FakeLLM):
+    """FakeLLM whose web search takes a fixed time, to observe concurrency."""
+
+    def __init__(self, delay: float) -> None:
+        super().__init__()
+        self.delay = delay
+        self.web_started: list[str] = []
+        self.web_finished: list[str] = []
+
+    async def web_evidence(self, claim: str):
+        self.web_started.append(claim)
+        await asyncio.sleep(self.delay)
+        self.web_finished.append(claim)
+        return await super().web_evidence(claim)
+
+    async def extract(self, image, media_type, caption, ocr_text):
+        from factcheck.models import ExtractionOutput
+
+        self.calls.append("extract")
+        return ExtractionOutput(claims=[c.strip() for c in (caption or "").split("|") if c.strip()])
+
+
+async def test_claims_are_resolved_concurrently(deps):
+    import time
+
+    deps.llm = _SlowWebLLM(delay=0.3)
+    caption = "Egg prices rose 5% in March 2025. | Milk prices rose 7% in March 2025. | Bread prices rose 2% in March 2025."
+    start = time.perf_counter()
+    card = await check(Post(caption=caption), deps)
+    elapsed = time.perf_counter() - start
+    assert len(card.claims) == 3
+    assert len(deps.llm.web_finished) == 3
+    assert elapsed < 0.3 * 2, f"claims ran sequentially: {elapsed:.2f}s"
+
+
+async def test_speculative_web_search_is_cancelled_on_fact_check_match(deps):
+    deps.llm = _SlowWebLLM(delay=0.3)
+    deps.factcheck = StaticFactCheckClient(
+        {"eiffel": [ClaimReview(claim_text=CLAIM, publisher="Snopes", url="https://snopes.com/x", rating="False")]}
+    )
+    card = await check(Post(caption=CLAIM), deps)
+    assert card.claims[0].evidence_origin == "fact_check_api"
+    assert card.stages["web"].state == "skipped"
+    assert deps.llm.web_started == [CLAIM]
+    assert deps.llm.web_finished == []

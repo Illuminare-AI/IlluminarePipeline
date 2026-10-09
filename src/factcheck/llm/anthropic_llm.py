@@ -23,18 +23,37 @@ from .base import WebSearchOutcome
 
 
 class AnthropicLLM:
-    def __init__(self, model: str = "claude-opus-5", api_key: str | None = None) -> None:
+    """`model` handles judgement calls (extraction, claim matching, web research).
+    `fast_model` handles format conversion and yes/no checks (report structuring, self-check);
+    it takes no `effort` setting, since Haiku 4.5 rejects that parameter."""
+
+    def __init__(
+        self,
+        model: str = "claude-opus-5",
+        api_key: str | None = None,
+        fast_model: str = "claude-haiku-4-5",
+    ) -> None:
         self.model = model
+        self.fast_model = fast_model
         self.client = anthropic.AsyncAnthropic(api_key=api_key) if api_key else anthropic.AsyncAnthropic()
 
-    async def _parse(self, system: str, content, output_format, effort: str = "low", max_tokens=4096):
+    async def _parse(
+        self,
+        system: str,
+        content,
+        output_format,
+        effort: str | None = "low",
+        max_tokens=4096,
+        model: str | None = None,
+    ):
+        kwargs = {"output_config": {"effort": effort}} if effort else {}
         response = await self.client.messages.parse(
-            model=self.model,
+            model=model or self.model,
             max_tokens=max_tokens,
             system=system,
             messages=[{"role": "user", "content": content}],
             output_format=output_format,
-            output_config={"effort": effort},
+            **kwargs,
         )
         if response.stop_reason == "refusal":
             raise RuntimeError("model refused the request")
@@ -84,7 +103,7 @@ class AnthropicLLM:
                 system=prompts.WEB_SEARCH_SYSTEM,
                 messages=messages,
                 tools=[{"type": "web_search_20260209", "name": "web_search", "max_uses": 6}],
-                output_config={"effort": "medium"},
+                output_config={"effort": "low"},
             )
             for block in response.content:
                 btype = getattr(block, "type", "")
@@ -108,7 +127,11 @@ class AnthropicLLM:
             messages.append({"role": "assistant", "content": response.content})
         report = "\n".join(report_parts).strip()
         evidence = await self._parse(
-            prompts.STRUCTURE_WEB_SYSTEM, f"Claim: {claim}\n\nReport:\n{report}", WebEvidence
+            prompts.STRUCTURE_WEB_SYSTEM,
+            f"Claim: {claim}\n\nReport:\n{report}",
+            WebEvidence,
+            effort=None,
+            model=self.fast_model,
         )
         return WebSearchOutcome(evidence=evidence, returned_urls=returned_urls)
 
@@ -116,5 +139,9 @@ class AnthropicLLM:
         numbered = "\n".join(f"[{i}] {s}" for i, s in enumerate(sentences))
         qs = "\n".join(f"- {q}" for q in quotes) or "(no quotes)"
         return await self._parse(
-            prompts.SUPPORT_CHECK_SYSTEM, f"Sentences:\n{numbered}\n\nQuotes:\n{qs}", SupportCheck
+            prompts.SUPPORT_CHECK_SYSTEM,
+            f"Sentences:\n{numbered}\n\nQuotes:\n{qs}",
+            SupportCheck,
+            effort=None,
+            model=self.fast_model,
         )

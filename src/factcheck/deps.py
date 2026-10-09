@@ -39,7 +39,9 @@ def build_deps(settings: Settings | None = None) -> Deps:
     if s.llm_backend == "anthropic":
         from .llm.anthropic_llm import AnthropicLLM
 
-        llm: LLM = AnthropicLLM(model=s.llm_model, api_key=s.anthropic_api_key)
+        llm: LLM = AnthropicLLM(
+            model=s.llm_model, api_key=s.anthropic_api_key, fast_model=s.llm_fast_model
+        )
     else:
         from .llm.fake import FakeLLM
 

@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     llm_backend: Literal["anthropic", "fake"] = "fake"
     llm_model: str = "claude-opus-5"
+    llm_fast_model: str = "claude-haiku-4-5"  # report structuring and self-check
     anthropic_api_key: str | None = None
 
     factcheck_api_key: str | None = None

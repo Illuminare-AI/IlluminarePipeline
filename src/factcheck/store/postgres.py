@@ -17,6 +17,7 @@ import asyncio
 import hashlib
 import json
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy import bindparam, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -100,23 +101,52 @@ def _vec(embedding: list[float]) -> str:
 
 
 class SentenceEmbeddingEncoder:
-    """Generates 384-dimensional embeddings using sentence-transformers asynchronously."""
+    """Generates 384-dimensional embeddings using sentence-transformers asynchronously.
+
+    The first call constructs the model, which may download weights and takes seconds.
+    That happens in a worker thread under a lock so the event loop keeps running and
+    concurrent first calls do not load the model twice.
+    """
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
         self.model_name = model_name
         self._model = None
+        self._load_lock: asyncio.Lock | None = None
 
-    def _get_model(self):
-        if self._model is None:
-            from sentence_transformers import SentenceTransformer
+    def _load_model(self):
+        from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self.model_name)
+        return SentenceTransformer(self.model_name)
+
+    async def _get_model(self):
+        if self._model is not None:
+            return self._model
+        if self._load_lock is None:  # created lazily so the encoder can be built outside a loop
+            self._load_lock = asyncio.Lock()
+        async with self._load_lock:
+            if self._model is None:
+                self._model = await asyncio.to_thread(self._load_model)
         return self._model
 
     async def encode(self, text_input: str) -> list[float]:
-        model = self._get_model()
+        model = await self._get_model()
         vector = await asyncio.to_thread(model.encode, text_input, normalize_embeddings=True)
         return vector.tolist()
+
+
+def normalize_db_url(url: str) -> str:
+    """Accept the URL shapes hosted Postgres providers hand out and make them asyncpg-ready.
+
+    - `postgres://` and `postgresql://` become `postgresql+asyncpg://`.
+    - `sslmode=<x>` (libpq syntax, rejected by asyncpg) becomes `ssl=<x>`.
+    """
+    parts = urlsplit(url)
+    scheme = parts.scheme
+    if scheme in ("postgres", "postgresql"):
+        scheme = "postgresql+asyncpg"
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+    query = [("ssl", v) if k == "sslmode" else (k, v) for k, v in query]
+    return urlunsplit((scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
 
 class PostgresStore:
@@ -127,7 +157,7 @@ class PostgresStore:
         phash_max_distance: int = 10,
         encoder: SentenceEmbeddingEncoder | None = None,
     ) -> None:
-        self.engine = create_async_engine(db_url, echo=False, pool_pre_ping=True)
+        self.engine = create_async_engine(normalize_db_url(db_url), echo=False, pool_pre_ping=True)
         self.session_factory = async_sessionmaker(
             bind=self.engine, class_=AsyncSession, expire_on_commit=False
         )

@@ -1,11 +1,13 @@
 """Orchestration: check(post) -> Card.
 
-Order: 0 -> 1 -> 2 -> (3 and 5 together) -> 4 if needed -> 6.
+Order: 0 -> 1 -> 2 -> (3, 4 and 5 together; 4 is cancelled on a stage 3 hit) -> 6.
+Claims are resolved concurrently.
 Every stage runs through run_stage, so a failure or timeout marks the stage and the card still returns.
 """
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import uuid
 
 from .deps import Deps
@@ -102,61 +104,81 @@ def _ok():
 
 
 async def _resolve_claims(claims, post, ocr_text, deps, card, tracer) -> list[ClaimResult]:
-    s = deps.settings
+    """Resolve every claim concurrently; the stage takes as long as the slowest claim."""
+    outcomes = await asyncio.gather(
+        *(_resolve_claim(claim, post, ocr_text, deps, tracer) for claim in claims)
+    )
+    stage_states: dict[str, list] = {"memory": [], "fact_check": [], "web": [], "self_check": []}
     results: list[ClaimResult] = []
-    stage_states = {"memory": [], "fact_check": [], "web": [], "self_check": []}
-
-    for claim in claims:
-        # Stage 2: memory
-        mem, st = await run_stage("memory", s2_memory.memory_match(claim, deps.store, deps.llm), s.stage_timeout)
-        stage_states["memory"].append(st)
-        tracer.record("memory", input=claim, output=mem, error=st.detail)
-        if mem:
-            results.append(mem)
-            stage_states["fact_check"].append(skipped("memory hit"))
-            stage_states["web"].append(skipped("memory hit"))
-            stage_states["self_check"].append(skipped("memory hit"))
-            continue
-
-        # Stage 3: existing fact-checks
-        fc, st = await run_stage(
-            "fact_check", s3_factcheck.existing_fact_checks(claim, deps.factcheck, deps.llm), s.stage_timeout
-        )
-        stage_states["fact_check"].append(st)
-        tracer.record("fact_check", input=claim, output=fc, error=st.detail)
-        if fc:
-            results.append(fc)
-            stage_states["web"].append(skipped("fact-check match"))
-            stage_states["self_check"].append(skipped("fact-check explanation is templated"))
-            continue
-
-        # Stage 4: web evidence
-        web, st = await run_stage(
-            "web", s4_web.web_evidence(claim, deps.llm, post.caption, ocr_text), s.web_stage_timeout
-        )
-        stage_states["web"].append(st)
-        tracer.record("web", input=claim, output=web, error=st.detail)
-        if web is None:
-            results.append(
-                ClaimResult(
-                    claim=claim,
-                    label="not_enough_evidence",
-                    explanation="The evidence search did not complete.",
-                    evidence_origin="none",
-                )
-            )
-            stage_states["self_check"].append(skipped("no web result"))
-            continue
-
-        # Stage 6: self-check
-        checked, st = await run_stage("self_check", s6_assemble.self_check(web, deps.llm), s.stage_timeout)
-        stage_states["self_check"].append(st)
-        tracer.record("self_check", input=web.explanation, output=checked, error=st.detail)
-        results.append(checked or web.model_copy(update={"explanation": ""}))
-
+    for result, states in outcomes:
+        results.append(result)
+        for name, st in states.items():
+            stage_states[name].append(st)
     for name, states in stage_states.items():
         card.stages[name] = _merge(states)
     return results
+
+
+async def _resolve_claim(claim, post, ocr_text, deps, tracer) -> tuple[ClaimResult, dict]:
+    """Stages 2 -> 3 -> 4 -> 6 for one claim. Returns the result and each stage's status.
+
+    The web search (stage 4) starts speculatively alongside the fact-check lookup (stage 3)
+    and is cancelled if a published fact-check matches. This trades a little wasted search
+    spend on fact-check hits for a shorter wall clock on misses, which are the common case.
+    """
+    s = deps.settings
+    states: dict = {}
+
+    # Stage 2: memory
+    mem, st = await run_stage("memory", s2_memory.memory_match(claim, deps.store, deps.llm), s.stage_timeout)
+    states["memory"] = st
+    tracer.record("memory", input=claim, output=mem, error=st.detail)
+    if mem:
+        states["fact_check"] = skipped("memory hit")
+        states["web"] = skipped("memory hit")
+        states["self_check"] = skipped("memory hit")
+        return mem, states
+
+    # Stage 4 starts now; stage 3 runs in the foreground
+    web_task = asyncio.create_task(
+        run_stage("web", s4_web.web_evidence(claim, deps.llm, post.caption, ocr_text), s.web_stage_timeout)
+    )
+
+    # Stage 3: existing fact-checks
+    fc, st = await run_stage(
+        "fact_check", s3_factcheck.existing_fact_checks(claim, deps.factcheck, deps.llm), s.stage_timeout
+    )
+    states["fact_check"] = st
+    tracer.record("fact_check", input=claim, output=fc, error=st.detail)
+    if fc:
+        web_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await web_task
+        states["web"] = skipped("fact-check match")
+        states["self_check"] = skipped("fact-check explanation is templated")
+        return fc, states
+
+    # Stage 4: web evidence
+    web, st = await web_task
+    states["web"] = st
+    tracer.record("web", input=claim, output=web, error=st.detail)
+    if web is None:
+        states["self_check"] = skipped("no web result")
+        return (
+            ClaimResult(
+                claim=claim,
+                label="not_enough_evidence",
+                explanation="The evidence search did not complete.",
+                evidence_origin="none",
+            ),
+            states,
+        )
+
+    # Stage 6: self-check
+    checked, st = await run_stage("self_check", s6_assemble.self_check(web, deps.llm), s.stage_timeout)
+    states["self_check"] = st
+    tracer.record("self_check", input=web.explanation, output=checked, error=st.detail)
+    return checked or web.model_copy(update={"explanation": ""}), states
 
 
 def _merge(states):

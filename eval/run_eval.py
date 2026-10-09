@@ -25,6 +25,11 @@ HERE = Path(__file__).parent
 
 async def main() -> int:
     deps = build_deps()
+    # Same warm-up the API does at startup: create the schema and load the embedding model
+    # before any timed stage runs, so a cold store does not show up as a memory timeout.
+    init_db = getattr(deps.store, "init_db", None)
+    if init_db is not None:
+        await init_db()
     failures = 0
     rows = []
     for line in (HERE / "cases.jsonl").read_text().splitlines():
