@@ -12,6 +12,7 @@ open decisions.
 - [frontend](frontend/README.md): React UI, Vite port **5173**; `/api` proxies to the backend.
 - [frontend/image-context](frontend/image-context/README.md): companion OCR/local vision service, port **8001**.
 - [reddit-bot](reddit-bot/README.md): separate Devvit scaffold and offline runner.
+- [extension](extension/README.md): Chrome extension; right-click text, an image or a page region to check it in the side panel.
 
 The UI now uses the backend's evidence cards. Follow the frontend README for the combined
 PowerShell setup. `LLM_BACKEND=fake` remains the default and is labeled in the UI; enable

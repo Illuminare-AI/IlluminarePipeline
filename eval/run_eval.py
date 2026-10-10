@@ -5,7 +5,9 @@
 
 Fields per case: id, caption, ocr_text, image (path relative to eval/), expected_label (label of the
 first claim, null for "nothing checkable", or a list of acceptable labels so one case can hold for
-both the fake and the live backend), expected_origin, expected_tactics, must_not_accuse.
+both the fake and the live backend), expected_origin, expected_tactics, must_not_accuse,
+forbidden_claim_terms (case-insensitive substrings that no extracted claim may contain, used to
+catch claims about the post itself such as its timestamp or view count).
 """
 from __future__ import annotations
 
@@ -52,6 +54,10 @@ async def main() -> int:
             problems.append(f"tactics {sorted(got_tactics)}")
         if case.get("must_not_accuse") and card.origin.status == "possible_ai_signal":
             problems.append("FALSE ACCUSATION")
+        forbidden = [t.lower() for t in case.get("forbidden_claim_terms", [])]
+        bad_claims = [c.claim for c in card.claims if any(t in c.claim.lower() for t in forbidden)]
+        if bad_claims:
+            problems.append(f"claim about the medium: {bad_claims[0]!r}")
         failed = {k: v.state for k, v in card.stages.items() if v.state in ("failed", "timeout")}
         if failed:
             problems.append(f"stages {failed}")

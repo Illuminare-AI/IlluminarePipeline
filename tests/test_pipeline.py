@@ -219,3 +219,16 @@ async def test_speculative_web_search_is_cancelled_on_fact_check_match(deps):
     # A fast fact-check match may cancel speculative search before it starts.
     assert deps.llm.web_started in ([], [CLAIM])
     assert deps.llm.web_finished == []
+
+
+async def test_post_metadata_is_not_extracted_as_a_claim(deps):
+    """A screenshot's own timestamp, handle and engagement counts describe the medium, not the world."""
+    ocr = (
+        "BBC News @BBCNews · 11:24 AM · Oct 10, 2026\n"
+        "A man has died after entering a tiger enclosure at Yorkshire Wildlife Park, police say.\n"
+        "417.2K views 1.2K reposts 3.4K likes"
+    )
+    card = await check(Post(ocr_text=ocr), deps)
+    claims = [c.lower() for c in card.extraction.claims]
+    assert any("tiger enclosure" in c for c in claims)
+    assert not any(term in c for c in claims for term in ("views", "likes", "reposts", "11:24", "@bbcnews"))

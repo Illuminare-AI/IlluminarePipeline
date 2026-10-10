@@ -15,6 +15,12 @@ Return:
   caption and the OCR text. Rewrite each as a standalone sentence with names, dates, places and numbers
   made explicit. Do not include opinions, jokes, questions, predictions or value judgements. An empty
   list is a correct answer when nothing is checkable.
+  The post itself is the medium, not a claim. Never extract that the post exists, who posted it, or
+  when it was posted, and never extract its view, like, share, reply or follower counts, platform
+  labels, usernames, timestamps or other interface text. Check what the post says about the world.
+  The one exception: when the post is about a separate post (it quotes, screenshots or describes
+  someone else's post, article or message), facts asserted about that other post are checkable,
+  for example that a named account posted a given statement on a given date.
 - persuasion: tags from the fixed set urgency, authority, fear, promised_reward. For each tag, quote the exact
   phrase from the caption or OCR text that triggered it. The phrase must be a verbatim substring of one of
   those two inputs, copied character for character.

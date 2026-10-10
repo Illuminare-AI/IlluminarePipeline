@@ -4,7 +4,10 @@ Mention `u/signal-context-demo` in a comment to extract image context from its c
 
 ## Local demo (no Reddit account or posting)
 
-Start the [image-context](../frontend/image-context/README.md) service on port 8001, then:
+Start the [image-context](../frontend/image-context/README.md) service on port 8001, then
+(Node.js 20 or newer is required; the Devvit SDK uses import attributes that Node 18 cannot parse):
+
+**Windows**
 
 ```powershell
 cd C:\Github\IlluminarePipeline\reddit-bot
@@ -13,9 +16,19 @@ npm run demo -- --image ..\frontend\demo-preview.png
 npm run demo -- --fixture fixtures/no-parent.json
 ```
 
+**Linux**
+
+```bash
+cd reddit-bot
+nvm use            # picks Node 22 from .nvmrc; or any Node 20+ already on PATH
+npm install
+npm run demo -- --image ../frontend/demo-preview.png
+npm run demo -- --fixture fixtures/no-parent.json
+```
+
 The default fixture is fictional and has no image until `--image` is supplied. The runner loads that file, sends its bytes plus the fixture post title/body and mention text to `http://127.0.0.1:8001/analyze`, and prints the reply it would post. It never logs in to Reddit or posts anything. If installed, Tesseract and Ollama perform real OCR and local vision inference. Neither engine is mocked by the demo.
 
-Optional shell variables are in `.env.example`; files aren't loaded automatically. Set `$env:DEMO_INCLUDE_VISION='false'` for OCR only, and `CONTEXT_SERVICE_URL` / `CONTEXT_API_KEY` to match the service. Run the commands in a separate shell from the image server.
+Optional shell variables are in `.env.example`; files aren't loaded automatically. Set `$env:DEMO_INCLUDE_VISION='false'` (PowerShell) or `DEMO_INCLUDE_VISION=false npm run demo -- ...` (bash) for OCR only, and `CONTEXT_SERVICE_URL` / `CONTEXT_API_KEY` to match the service. Run the commands in a separate shell from the image server.
 
 ## Structure
 
@@ -44,7 +57,9 @@ This is a scaffold, not an approved production bot. Before launch, add user/mod 
 
 ## Checks
 
-```powershell
+Same on Windows and Linux:
+
+```bash
 npm run test
 npm run build
 ```

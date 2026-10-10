@@ -20,6 +20,14 @@ from ..models import (
 from ..services.factcheck_api import ClaimReview
 from .base import WebSearchOutcome
 
+# Interface text a screenshot carries: the fake skips it the way the prompt tells the real model to.
+_METADATA = re.compile(
+    r"\b(\d[\d.,]*\s*[kKmM]?\s*(views|likes|reposts|retweets|replies|shares|followers|quotes|bookmarks))\b"
+    r"|\b(posted|tweeted|published)\s+(at|on)\b|\d{1,2}:\d{2}\s*(am|pm)\b|\bvia\s+(x|twitter|reddit|facebook|instagram|tiktok)\b"
+    r"|^\s*@\w+|·|^\s*r/\w+",
+    re.IGNORECASE,
+)
+
 _TACTIC_CUES = {
     "urgency": ["share before", "act now", "right now", "immediately", "before it's deleted"],
     "authority": ["scientists say", "experts say", "doctors confirm", "officials"],
@@ -41,9 +49,11 @@ class FakeLLM:
         self.calls.append("extract")
         text = "\n".join(part for part in (caption, ocr_text) if part)
         claims: list[str] = []
-        for sentence in re.split(r"(?<=[.!?])\s+", text):
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", text):  # OCR lines rarely end in punctuation
             s = sentence.strip()
             if not s or s.endswith("?") or s.lower().startswith(("i think", "lol", "imo")):
+                continue
+            if _METADATA.search(s):
                 continue
             if re.search(r"\d|\b(is|are|was|were|has|have|will)\b", s):
                 claims.append(s.rstrip("!"))

@@ -1,3 +1,4 @@
 {"id": "opinion", "caption": "lol what a day?", "expected_label": null, "expected_origin": "unavailable"}
 {"id": "false-urgent", "caption": "Share before it's deleted! The Eiffel Tower was sold for scrap in 2024.", "image": "cases/gradient.png", "expected_label": ["not_enough_evidence", "refuted"], "expected_origin": "no_signal_found", "expected_tactics": ["urgency"]}
 {"id": "authentic", "caption": "Sunset over the bay tonight.", "image": "cases/gradient.png", "expected_label": null, "expected_origin": "no_signal_found", "must_not_accuse": true}
+{"id": "medium-not-claim", "ocr_text": "BBC News @BBCNews · 11:24 AM · Oct 10, 2026\nA man has died after entering a tiger enclosure at Yorkshire Wildlife Park, police say.\n417.2K views 1.2K reposts 3.4K likes", "expected_label": ["not_enough_evidence", "supported", "refuted", "missing_context"], "forbidden_claim_terms": ["views", "likes", "reposts", "11:24", "posted at", "tweet", "@bbcnews"]}
