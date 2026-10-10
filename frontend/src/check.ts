@@ -18,6 +18,14 @@ export type CheckResult = {
   from_memory: boolean;
   stages: Record<string, { state: 'ok' | 'skipped' | 'failed' | 'timeout'; detail: string | null }>;
   extraction: { ocr_text: string; image_description: string } | null;
+  image_context?: {
+    ocr_status: 'ok' | 'unavailable';
+    ocr_text: string;
+    vision_status: 'ok' | 'unavailable' | 'disabled';
+    model: string | null;
+    observations: { description: string; scene: string; objects: string[]; layout: string[];
+      additional_visible_text: string[]; claims_visible: string[]; uncertainties: string[] } | null;
+  } | null;
 };
 
 export const exampleText = 'A new government rule requires everyone to register their home battery before Friday or face a $500 fine. Share before it is deleted!';

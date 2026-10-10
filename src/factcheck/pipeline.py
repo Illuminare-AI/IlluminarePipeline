@@ -11,8 +11,8 @@ import contextlib
 import uuid
 
 from .deps import Deps
-from .models import Card, ClaimResult, OriginResult, Post
-from .services.ocr import read_image_text
+from .models import Card, ClaimResult, OriginResult, Post, StageStatus
+from .services.ocr import read_image_context, read_image_text
 from .stages import (
     s0_fingerprint,
     s1_extract,
@@ -42,7 +42,33 @@ async def check(post: Post, deps: Deps) -> Card:
         card.stages["input"] = skipped("empty post")
         return card
 
-    if post.image and not (post.ocr_text or "").strip() and s.image_context_url:
+    if post.image and s.image_vision_enabled and s.image_context_url:
+        context, st = await run_stage(
+            "image_context", read_image_context(post, s), s.image_context_timeout,
+        )
+        card.stages["image_context"] = st
+        card.image_context = context
+        if context is not None:
+            card.stages["vision"] = StageStatus(
+                state="ok" if context.vision_status == "ok" else
+                "skipped" if context.vision_status == "disabled" else "failed",
+                detail="Local image descriptions disabled" if context.vision_status == "disabled" else
+                "Local image model unavailable" if context.vision_status == "unavailable" else None,
+            )
+            card.stages["ocr"] = skipped("text supplied") if post.ocr_text else StageStatus(
+                state="ok" if context.ocr_status == "ok" else "failed",
+                detail=None if context.ocr_status == "ok" else "Image text extraction unavailable",
+            )
+            if not (post.ocr_text or "").strip():
+                text = context.ocr_text if context.ocr_status == "ok" else ""
+                if not text and context.observations is not None:
+                    text = "\n".join(context.observations.additional_visible_text)
+                post = post.model_copy(update={"ocr_text": text or None})
+        else:
+            card.stages["vision"] = st
+            card.stages["ocr"] = skipped("text supplied") if post.ocr_text else st
+        tracer.record("image_context", output=context, error=st.detail)
+    elif post.image and not (post.ocr_text or "").strip() and s.image_context_url:
         text, st = await run_stage("ocr", read_image_text(post, s), s.ocr_timeout)
         card.stages["ocr"] = st
         if text is not None:
@@ -53,6 +79,8 @@ async def check(post: Post, deps: Deps) -> Card:
             "text supplied" if post.ocr_text else
             "OCR service not configured" if post.image else "no image"
         )
+        if post.image and s.image_vision_enabled:
+            card.stages["vision"] = skipped("Image service not configured")
 
     # Stage 0: fingerprint and media memory
     fp, st = await run_stage("fingerprint", s0_fingerprint.fingerprint(post, deps.store), s.stage_timeout)
@@ -63,8 +91,13 @@ async def check(post: Post, deps: Deps) -> Card:
         stored = fp.media_match.card
         card = stored.model_copy(
             update={"check_id": check_id, "from_memory": True,
-                    "stages": {**stored.stages, "ocr": card.stages["ocr"], "fingerprint": st}}
+                    "image_context": card.image_context,
+                    "stages": {**stored.stages, **card.stages, "fingerprint": st}}
         )
+        if card.extraction and card.image_context and card.image_context.observations:
+            card.extraction = card.extraction.model_copy(update={
+                "image_description": card.image_context.observations.description,
+            })
         tracer.flush(card, request_post)
         return card
 
@@ -91,6 +124,8 @@ async def check(post: Post, deps: Deps) -> Card:
         card.stages["self_check"] = skipped("extraction failed")
     else:
         card.extraction = ex
+        if card.image_context and card.image_context.observations:
+            card.extraction.image_description = card.image_context.observations.description
         card.persuasion = ex.persuasion
         if not ex.claims:
             for name in ("memory", "fact_check", "web", "self_check"):

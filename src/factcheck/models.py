@@ -99,6 +99,24 @@ class StageStatus(BaseModel):
     detail: str | None = None
 
 
+class ImageObservation(BaseModel):
+    description: str
+    scene: str = ""
+    objects: list[str] = Field(default_factory=list)
+    layout: list[str] = Field(default_factory=list)
+    additional_visible_text: list[str] = Field(default_factory=list)
+    claims_visible: list[str] = Field(default_factory=list)
+    uncertainties: list[str] = Field(default_factory=list)
+
+
+class LocalImageContext(BaseModel):
+    ocr_status: Literal["ok", "unavailable"]
+    ocr_text: str = ""
+    vision_status: Literal["ok", "unavailable", "disabled"]
+    model: str | None = None
+    observations: ImageObservation | None = None
+
+
 # ---------- Card ----------
 
 
@@ -111,6 +129,7 @@ class Card(BaseModel):
     from_memory: bool = False
     stages: dict[str, StageStatus] = Field(default_factory=dict)
     extraction: Extraction | None = None
+    image_context: LocalImageContext | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @property

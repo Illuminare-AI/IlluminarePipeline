@@ -5,12 +5,17 @@ Standalone Python service and CLI for image OCR and local vision descriptions. N
 ## Setup (PowerShell)
 
 ```powershell
-cd C:\Github\IlluminarePipeline\frontend\image-context
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[test]"
+cd C:\Github\IlluminarePipeline
+.\scripts\setup.ps1
 ```
 
-`requirements-lock.txt` captures the exact dependencies verified in this workspace. To reproduce them, install with `pip install -r requirements-lock.txt` before installing this project with `pip install --no-deps -e .`.
+Use the shared root `.venv`. Docker uses Python 3.12; local Python must be 3.11 or newer. The setup script installs both
+Python projects and repairs incompatible environments. All commands below run from the
+repository root. `requirements-lock.txt` records an earlier standalone dependency snapshot;
+the combined workspace resolves the two projects together through the setup script.
+
+For the hackathon Docker setup, `docker compose up --build -d` includes Tesseract automatically
+and starts a local Ollama image model. The host installations below are only needed when running without Docker.
 
 Install [Tesseract](https://tesseract-ocr.github.io/tessdoc/Installation.html) with English language data. If it is not on PATH:
 
@@ -21,24 +26,24 @@ $env:TESSERACT_CMD = 'C:\Program Files\Tesseract-OCR\tesseract.exe'
 Install [Ollama](https://ollama.com/download), then download a vision model:
 
 ```powershell
-ollama pull qwen3-vl:4b
-$env:VISION_MODEL = 'qwen3-vl:4b'
+ollama pull qwen3-vl:4b-instruct
+$env:VISION_MODEL = 'qwen3-vl:4b-instruct'
 ```
 
 The 4B tag is a practical starting point, not a hardware guarantee; the model is several GB and requires additional memory at runtime. CPU inference works but can be slow. Try `qwen3-vl:2b` on a smaller machine. Model downloads need internet; local file analysis does not after installation. Check the model license before redistribution.
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn image_context.api:app --host 127.0.0.1 --port 8001
+.\.venv\Scripts\python.exe -m uvicorn image_context.api:app --host 127.0.0.1 --port 8001 --env-file frontend/image-context/.env
 ```
 
 In a separate shell, run the CLI (does not require the HTTP server):
 
 ```powershell
-.\.venv\Scripts\image-context.exe ..\demo-preview.png --context 'Demo screenshot'
-.\.venv\Scripts\image-context.exe ..\demo-preview.png --no-vision
+.\.venv\Scripts\image-context.exe frontend\demo-preview.png --context 'Demo screenshot'
+.\.venv\Scripts\image-context.exe frontend\demo-preview.png --no-vision
 ```
 
-`.env.example` documents configuration. It is not automatically loaded: set environment variables in PowerShell before launching. Set `VISION_ENABLED=false` for OCR-only operation.
+`frontend/image-context/.env.example` documents configuration. It is not automatically loaded: set environment variables in PowerShell before launching. Set `VISION_ENABLED=false` for OCR-only operation.
 
 ## HTTP contract
 
@@ -63,7 +68,7 @@ For public hosting, put authentication/TLS and request-rate limits in front of t
 ## Checks
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m pytest -c frontend/image-context/pyproject.toml frontend/image-context/tests
 ```
 
 Tests exercise image validation, URL restrictions, OCR pass structure, Ollama request/response format, authentication and degraded operation. They stub OCR/model execution; real engine quality must be checked after installation.
@@ -71,4 +76,3 @@ Tests exercise image validation, URL restrictions, OCR pass structure, Ollama re
 ## Reddit distinction
 
 Use the local model for standalone/offline demos. Reddit currently disallows self-hosted LLMs in Devvit apps. The [Reddit bot](../../reddit-bot/README.md)'s live adapter requests OCR only and starts disabled; model inference on live Reddit content requires a permitted provider or explicit written exception. [Devvit rules](https://developers.reddit.com/docs/devvit_rules).
-

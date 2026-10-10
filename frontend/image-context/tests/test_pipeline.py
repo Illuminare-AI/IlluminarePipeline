@@ -43,11 +43,14 @@ def test_ocr_passes_preserve_confidence_and_coordinates(monkeypatch):
 
 
 def test_ollama_request_and_structured_response(monkeypatch):
+    monkeypatch.delenv("VISION_MODEL", raising=False)
     observation = {"description": "A white rectangle.", "scene": "blank", "objects": [], "layout": [], "additional_visible_text": [], "claims_visible": [], "uncertainties": []}
     def post(url, **kwargs):
         payload = kwargs["json"]
         assert url.endswith("/api/chat")
         assert payload["stream"] is False
+        assert payload["model"] == "qwen3-vl:4b-instruct"
+        assert payload["think"] is False
         assert payload["format"]["type"] == "object"
         assert base64.b64decode(payload["messages"][1]["images"][0]).startswith(b"\x89PNG")
         assert "untrusted" in payload["messages"][0]["content"]

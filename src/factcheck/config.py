@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     image_context_url: str | None = None
     image_context_api_key: str | None = None
     ocr_timeout: float = 25.0
+    image_vision_enabled: bool = True
+    image_context_timeout: float = 600.0
 
 
 def load_settings() -> Settings:

@@ -1,13 +1,89 @@
 services:
+  backend:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      LLM_BACKEND: ${LLM_BACKEND:-fake}
+      LLM_MODEL: ${LLM_MODEL:-claude-opus-5}
+      LLM_FAST_MODEL: ${LLM_FAST_MODEL:-claude-haiku-4-5}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      FACTCHECK_API_KEY: ${FACTCHECK_API_KEY:-}
+      DETECTOR_API_KEY: ${DETECTOR_API_KEY:-}
+      DETECTOR_URL: ${DETECTOR_URL:-https://api.gowinston.ai/v2/image-detection}
+      DETECTOR_VERSION: ${DETECTOR_VERSION:-}
+      DETECTOR_THRESHOLD: ${DETECTOR_THRESHOLD:-0.9}
+      IMAGE_CONTEXT_URL: http://image-context:8001
+      IMAGE_CONTEXT_API_KEY: ${IMAGE_CONTEXT_API_KEY:-}
+      OCR_TIMEOUT: ${OCR_TIMEOUT:-25}
+      IMAGE_VISION_ENABLED: "true"
+      IMAGE_CONTEXT_TIMEOUT: ${IMAGE_CONTEXT_TIMEOUT:-600}
+      STAGE_TIMEOUT: ${STAGE_TIMEOUT:-10}
+      WEB_STAGE_TIMEOUT: ${WEB_STAGE_TIMEOUT:-90}
+      POSTGRES_URL: ""
+      TRACE_DIR: /app/traces
+    volumes:
+      - check-traces:/app/traces
+    depends_on:
+      image-context:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+  image-context:
+    build: ./frontend/image-context
+    ports:
+      - "127.0.0.1:8001:8001"
+    environment:
+      VISION_ENABLED: "true"
+      OLLAMA_URL: http://ollama:11434
+      VISION_MODEL: ${VISION_MODEL:-qwen3-vl:4b-instruct}
+      VISION_TIMEOUT: ${VISION_TIMEOUT:-540}
+      CONTEXT_API_KEY: ${IMAGE_CONTEXT_API_KEY:-}
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  ollama-init:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      VISION_MODEL: ${VISION_MODEL:-qwen3-vl:4b-instruct}
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['ollama pull "$$VISION_MODEL"']
+    depends_on:
+      ollama:
+        condition: service_healthy
   db:
+    profiles: [database]
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: factcheck
       POSTGRES_PASSWORD: factcheck
       POSTGRES_DB: factcheck
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 volumes:
   pgdata:
+  check-traces:
+  ollama-models:

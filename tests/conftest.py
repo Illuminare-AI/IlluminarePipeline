@@ -36,7 +36,11 @@ def make_image(seed: int = 1, size=(64, 64), fmt="PNG", quality=95) -> bytes:
 
 @pytest.fixture
 def settings(tmp_path):
-    return Settings(llm_backend="fake", trace_dir=str(tmp_path / "traces"), stage_timeout=5)
+    return Settings(
+        llm_backend="fake", trace_dir=str(tmp_path / "traces"), stage_timeout=5,
+        image_context_url=None,
+        image_vision_enabled=False,
+    )
 
 
 @pytest.fixture

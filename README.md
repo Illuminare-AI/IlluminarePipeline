@@ -1,5 +1,7 @@
 # Fact-check pipeline (backend)
 
+For the shorter Windows setup and the three startup commands, see [Quickstart](README-QUICKSTART.md).
+
 Multimodal social media fact checker. Takes a post
 (image and/or caption) and returns an evidence card. See `ANALYSIS.md` for known risks and
 open decisions.
@@ -16,6 +18,24 @@ PowerShell setup. `LLM_BACKEND=fake` remains the default and is labeled in the U
 Anthropic and its key for live model calls. Set `IMAGE_CONTEXT_URL=http://127.0.0.1:8001`
 to extract image text automatically through the companion service. Manual `ocr_text` overrides
 automatic OCR. OCR failures are reported in `stages.ocr` and other stages continue.
+
+## Hackathon: local Docker backend
+
+```powershell
+docker compose up --build -d
+cd frontend
+npm ci
+npm run dev
+```
+
+FastAPI runs at `http://127.0.0.1:8000`, with Tesseract OCR and local image descriptions in its companion container on
+port 8001. Vite's existing `/api` proxy connects to the published backend port. Compose reads
+root `.env` values for model/API configuration; without keys it defaults to the clearly labeled
+fake fact-check model. OCR and local vision are enabled between containers; Ollama downloads the image model on first launch. No hosted deployment is needed.
+
+The Docker backend uses an in-memory store and saves traces in a Docker volume. The existing
+Postgres container is optional (`docker compose up -d db`); the Python setup below supports
+connecting to it with the `db` extra. It is not connected to the default Docker API image.
 
 ## Layout
 
@@ -38,13 +58,19 @@ eval/              cases.jsonl + run_eval.py test harness
 
 ## Run
 
-```bash
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-Copy-Item .env.example .env      # LLM_BACKEND=fake works with no keys
+```powershell
+.\scripts\setup.ps1
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 .\.venv\Scripts\python.exe -m pytest
 .\.venv\Scripts\python.exe -m uvicorn factcheck.api:app --reload --port 8000
 ```
+
+Docker uses Python **3.12**. Local development supports Python **3.11 or newer**; the setup script installs
+both Python projects, checks native imports and dependency consistency, and preserves an
+incompatible `.venv` under `.tmp` before rebuilding it. It uses the current environment's base
+Python; use `-PythonPath C:\path\to\python.exe` to select one explicitly (3.12 matches Docker).
+Do not recreate an existing environment with a different Python version: compiled packages
+such as Pillow must match the interpreter. Always run tests through `.venv\Scripts\python.exe`.
 
 Pass transcribed image text as `ocr_text` (multipart field or JSON key), or configure the
 companion OCR service. Stage 1 feeds that text to the model instead of asking it to transcribe.
@@ -70,7 +96,7 @@ Per-claim stage statuses are merged into one entry per stage: worst state wins, 
 ## Postgres store
 
 ```bash
-pip install -e ".[dev,db]" && docker compose up -d
+pip install -e ".[dev,db]" && docker compose up -d db
 # in .env: POSTGRES_URL=postgresql+asyncpg://factcheck:factcheck@localhost:5433/factcheck
 ```
 

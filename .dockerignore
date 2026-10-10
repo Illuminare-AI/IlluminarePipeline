@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+.venv
+.tmp
+**/node_modules
+**/.venv
+**/__pycache__
+**/dist
+**/*.egg-info
+**/.npm-cache
+traces
+frontend
+reddit-bot
+tests
+eval

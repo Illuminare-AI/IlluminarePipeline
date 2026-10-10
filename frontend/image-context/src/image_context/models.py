@@ -26,13 +26,13 @@ class AnalysisRequest(BaseModel):
 
 
 class Observation(BaseModel):
-    description: str
-    scene: str
-    objects: list[str]
-    layout: list[str]
-    additional_visible_text: list[str]
-    claims_visible: list[str]
-    uncertainties: list[str]
+    description: str = Field(min_length=1, max_length=1200)
+    scene: str = Field(max_length=600)
+    objects: list[str] = Field(max_length=8)
+    layout: list[str] = Field(max_length=8)
+    additional_visible_text: list[str] = Field(max_length=30)
+    claims_visible: list[str] = Field(max_length=8)
+    uncertainties: list[str] = Field(max_length=8)
 
 
 class ImageResult(BaseModel):
