@@ -21,6 +21,13 @@ the extension's card.
 
 ## Use
 
+- **A post, read from the page (fastest)**: right-click, choose **Check this post with Signal**,
+  then hover until the post is outlined and click it. Arrow Up widens the outline to the parent
+  element, Arrow Down narrows it again, Esc cancels. The post's text is read from the DOM, with
+  counters, timestamps and buttons stripped, and sent as the caption; the post's main photo, if
+  any, is sent as the image with `describe_image=false`, so the backend runs OCR and the AI
+  detector on the photo but skips the slow local description. The post permalink is used as the
+  source when one is found. Reddit's shadow DOM is handled.
 - **Selected text**: highlight text, right-click, choose **Check selected text with Signal**. The
   text is sent as the caption and the page address as the source.
 - **An image**: right-click it, choose **Check this image with Signal**. The original file is
@@ -46,7 +53,7 @@ control.
 
 ```bash
 npm run check   # type-check
-npm test        # pure helpers (crop and thumbnail geometry)
+npm test        # pure helpers (crop geometry, post text cleaning)
 npm run build
 ```
 
@@ -57,6 +64,7 @@ npm run build
 - `src/background.ts`: service worker. Creates the menus, captures or fetches the image, calls
   `/check`, and stores the job in `chrome.storage.session` so the panel can follow it.
 - `src/content.ts`: the drag-to-select overlay, injected only when the region menu item is used.
+- `src/picker.ts`: the hover-and-click post picker; `src/postText.ts` holds its pure text cleaning.
 - `src/sidepanel.tsx`: the panel UI. Types, verdict labels and persuasion copy are imported from
   `frontend/src/check.ts` so the two clients stay in step.
 - `build.mjs`: esbuild bundling into `dist/`.

@@ -43,7 +43,7 @@ async def check(post: Post, deps: Deps) -> Card:
         card.stages["input"] = skipped("empty post")
         return card
 
-    if post.image and s.image_vision_enabled and s.image_context_url:
+    if post.image and s.image_vision_enabled and post.describe_image and s.image_context_url:
         context, st = await run_stage(
             "image_context", read_image_context(post, s), s.image_context_timeout,
         )
@@ -75,13 +75,17 @@ async def check(post: Post, deps: Deps) -> Card:
         if text is not None:
             post = post.model_copy(update={"ocr_text": text})
         tracer.record("ocr", output=text, error=st.detail)
+        if s.image_vision_enabled and not post.describe_image:
+            card.stages["vision"] = skipped("description not requested")
     else:
         card.stages["ocr"] = skipped(
             "text supplied" if post.ocr_text else
             "OCR service not configured" if post.image else "no image"
         )
         if post.image and s.image_vision_enabled:
-            card.stages["vision"] = skipped("Image service not configured")
+            card.stages["vision"] = skipped(
+                "description not requested" if not post.describe_image else "Image service not configured"
+            )
 
     # Stage 0: fingerprint and media memory
     fp, st = await run_stage("fingerprint", s0_fingerprint.fingerprint(post, deps.store), s.stage_timeout)
@@ -113,7 +117,9 @@ async def check(post: Post, deps: Deps) -> Card:
     origin_task = asyncio.create_task(
         run_stage(
             "origin",
-            s5_origin.origin_signals(post.image, deps.credentials, deps.detector, s.detector_threshold),
+            s5_origin.origin_signals(
+                post.image, deps.credentials, deps.detector, s.detector_threshold, deps.reverse_image
+            ),
             s.stage_timeout,
         )
     )

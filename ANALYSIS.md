@@ -30,6 +30,9 @@
    lets the origin result touch the claim label. The "no signal found" note explicitly says it is not
    verification. The detector is Walter Writes (`WalterWritesDetector`); the emitted score is
    `P(fake) + P(inpainting)`, so a real photo with AI-edited regions counts as a signal too.
+   A reverse image search (Google Vision web detection) supplements it, but only matches on an
+   allowlist of reputable domains are shown, and a match ranks below credentials and a detector
+   hit: newsrooms publish generated images when reporting on them.
 
 6. **C2PA will almost never be present on social media images.** Platforms strip metadata on
    upload. Expect credentials only on demo images you generate yourself with a tool that signs

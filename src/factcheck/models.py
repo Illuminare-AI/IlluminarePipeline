@@ -18,6 +18,9 @@ class Post(BaseModel):
     ocr_text: str | None = None
     """Text in the image, transcribed by the frontend. The pipeline does not run OCR itself."""
     source_url: str | None = None
+    describe_image: bool = True
+    """False skips the local vision description (the client already has the post text); OCR and
+    the detector still run on the image."""
 
     def text(self) -> str:
         return self.caption or ""
@@ -26,7 +29,9 @@ class Post(BaseModel):
 # ---------- Labels and enums ----------
 
 ClaimLabel = Literal["supported", "refuted", "missing_context", "not_enough_evidence"]
-OriginStatus = Literal["credentials_present", "possible_ai_signal", "no_signal_found", "unavailable"]
+OriginStatus = Literal[
+    "credentials_present", "possible_ai_signal", "matched_reputable_source", "no_signal_found", "unavailable"
+]
 TacticName = Literal["urgency", "authority", "fear", "promised_reward"]
 EvidenceOrigin = Literal["memory", "fact_check_api", "web", "none"]
 StageState = Literal["ok", "skipped", "failed", "timeout"]
@@ -84,10 +89,22 @@ class DetectorSignal(BaseModel):
     verdict: str | None = None  # provider label, e.g. "real", "fake", "inpainting"
 
 
+class ImageMatch(BaseModel):
+    """A page or file on a reputable domain that carries the same image (stage 5 reverse search)."""
+
+    url: str
+    domain: str
+    title: str = ""
+    kind: Literal["full", "partial", "page"] = Field(
+        default="page", description="full: same image; partial: a crop or part of it; page: unspecified"
+    )
+
+
 class OriginResult(BaseModel):
     status: OriginStatus = "unavailable"
     credentials: Credentials | None = None
     detector: DetectorSignal | None = None
+    matches: list[ImageMatch] = Field(default_factory=list)
     note: str = Field(
         default="",
         description="Plain-language caveat. 'No signal found' is never 'verified authentic'.",

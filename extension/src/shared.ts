@@ -3,7 +3,7 @@ import type { CheckResult } from '../../frontend/src/check';
 
 export const DEFAULT_BACKEND = 'http://127.0.0.1:8000';
 
-export type JobKind = 'text' | 'image' | 'region';
+export type JobKind = 'text' | 'image' | 'region' | 'post';
 
 export type JobInput = {
   kind: JobKind;
@@ -11,6 +11,10 @@ export type JobInput = {
   sourceUrl: string;
   /** Small data-URL thumbnail of the captured image, for the panel only. */
   preview?: string;
+  /** False when the client already has the post text: the backend skips the vision description. */
+  describeImage?: boolean;
+  /** The post's own timestamp, shown as context; never sent as a claim. */
+  timestamp?: string;
 };
 
 export type Job = {
@@ -31,7 +35,16 @@ export type PanelMessage =
 /** Messages from the injected region selector to the service worker. */
 export type ContentMessage =
   | { type: 'region-selected'; rect: Rect; dpr: number }
-  | { type: 'region-cancelled' };
+  | { type: 'region-cancelled' }
+  | {
+      type: 'element-selected';
+      text: string;
+      permalink: string;
+      timestamp: string;
+      imageUrl: string;
+      imageRect: Rect | null;
+      dpr: number;
+    };
 
 export type Rect = { x: number; y: number; width: number; height: number };
 

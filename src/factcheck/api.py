@@ -27,6 +27,13 @@ class CheckJson(BaseModel):
     caption: str | None = None
     ocr_text: str | None = None
     source_url: str | None = None
+    describe_image: bool = True
+
+
+def _flag(value: str | None, default: bool = True) -> bool:
+    if value is None or not value.strip():
+        return default
+    return value.strip().lower() not in ("0", "false", "no", "off")
 
 
 def create_app(deps: Deps | None = None) -> FastAPI:
@@ -54,16 +61,21 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         caption: Annotated[str | None, Form()] = None,
         ocr_text: Annotated[str | None, Form()] = None,
         source_url: Annotated[str | None, Form()] = None,
+        describe_image: Annotated[str | None, Form()] = None,
     ):
         if request.headers.get("content-type", "").startswith("application/json"):
             body = CheckJson.model_validate(await request.json())
             data = base64.b64decode(body.image_base64) if body.image_base64 else None
             post = Post(
-                image=data, caption=body.caption, ocr_text=body.ocr_text, source_url=body.source_url
+                image=data, caption=body.caption, ocr_text=body.ocr_text, source_url=body.source_url,
+                describe_image=body.describe_image,
             )
         else:
             data = await image.read() if image is not None else None
-            post = Post(image=data or None, caption=caption, ocr_text=ocr_text, source_url=source_url)
+            post = Post(
+                image=data or None, caption=caption, ocr_text=ocr_text, source_url=source_url,
+                describe_image=_flag(describe_image),
+            )
         if post.image and len(post.image) > MAX_IMAGE_BYTES:
             raise HTTPException(413, "image too large")
         if not post.image and not (post.caption or "").strip() and not (post.ocr_text or "").strip():

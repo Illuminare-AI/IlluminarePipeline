@@ -80,7 +80,7 @@ function App() {
         <textarea rows={3} placeholder="Paste a claim or caption" value={caption} onChange={(e) => setCaption(e.target.value)} />
         <div className="row">
           <button className="primary" disabled={running || !caption.trim()} onClick={() => send({ type: 'check-text', caption })}>Check text</button>
-          <span className="muted">Or right-click any page: select text, an image, or drag a region.</span>
+          <span className="muted">Or right-click any page: pick a post, select text, an image, or drag a region.</span>
         </div>
       </section>
 
@@ -88,6 +88,7 @@ function App() {
         <section className="card">
           <h2>How to use</h2>
           <ol className="tips">
+            <li>Right-click a post and choose <b>Check this post with Signal</b>, then hover and click the post. Its text is read from the page, so no OCR or image description is needed.</li>
             <li>Highlight text on a page, right-click, choose <b>Check selected text with Signal</b>.</li>
             <li>Right-click an image and choose <b>Check this image with Signal</b>.</li>
             <li>Right-click anywhere and choose <b>Check a region of this page</b>, then drag a box around the post.</li>
@@ -103,7 +104,7 @@ function App() {
 }
 
 function JobCard({ job, elapsed }: { job: Job; elapsed: number }) {
-  const kind = { text: 'Selected text', image: 'Image', region: 'Page region' }[job.input.kind];
+  const kind = { text: 'Selected text', image: 'Image', region: 'Page region', post: 'Post' }[job.input.kind];
   return (
     <section className="card">
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -116,6 +117,7 @@ function JobCard({ job, elapsed }: { job: Job; elapsed: number }) {
       </div>
       {job.input.preview && <img className="preview" src={job.input.preview} alt="Captured image" />}
       {job.input.caption && <p className="excerpt">{job.input.caption}</p>}
+      {job.input.timestamp && <p className="muted">Posted {new Date(job.input.timestamp).toLocaleString()}</p>}
       {job.input.sourceUrl && sourceUrl(job.input.sourceUrl) && (
         <p className="muted">From <a href={job.input.sourceUrl} target="_blank" rel="noopener noreferrer">{new URL(job.input.sourceUrl).hostname}</a></p>
       )}
@@ -164,6 +166,15 @@ function ResultCards({ result }: { result: CheckResult }) {
         {result.origin.detector && (
           <p className="muted" style={{ margin: 0 }}>AI detector: {result.origin.detector.provider} {result.origin.detector.score.toFixed(2)} (threshold {result.origin.detector.threshold.toFixed(2)})</p>
         )}
+        {result.origin.matches?.map((m, i) => {
+          const href = sourceUrl(m.url);
+          return (
+            <div className="source" key={i}>
+              <strong>{href ? <a href={href} target="_blank" rel="noopener noreferrer">{m.title || m.domain}</a> : m.domain}</strong>
+              <span className="muted">{m.domain}{m.kind === 'partial' ? ' · partial match' : ''}</span>
+            </div>
+          );
+        })}
       </section>
 
       <section className="card">

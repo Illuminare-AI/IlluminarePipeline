@@ -35,3 +35,18 @@ def test_ocr_text_accepted_on_both_content_types(deps):
     )
     assert r2.status_code == 200
     assert r2.json()["extraction"]["ocr_text"] == ocr
+
+
+def test_describe_image_false_skips_the_description(deps):
+    """A client that already has the post text can ask for OCR and the detector without the vision model."""
+    deps.settings.image_vision_enabled = True
+    client = TestClient(create_app(deps))
+    r = client.post(
+        "/check",
+        files={"image": ("a.png", make_image(2), "image/png")},
+        data={"caption": "hi", "describe_image": "false"},
+    )
+    assert r.status_code == 200
+    assert r.json()["stages"]["vision"] == {"state": "skipped", "ms": 0, "detail": "description not requested"}
+    r2 = client.post("/check", json={"caption": "hi", "image_base64": base64.b64encode(make_image(2)).decode(), "describe_image": False})
+    assert r2.json()["stages"]["vision"]["detail"] == "description not requested"

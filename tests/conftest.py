@@ -9,6 +9,7 @@ from factcheck.llm.fake import FakeLLM
 from factcheck.services.c2pa import StaticCredentialsReader
 from factcheck.services.detector import StaticDetector
 from factcheck.services.factcheck_api import StaticFactCheckClient
+from factcheck.services.reverse_image import StaticReverseImageSearch
 from factcheck.store.memory import InMemoryStore
 
 
@@ -52,4 +53,5 @@ def deps(settings):
         factcheck=StaticFactCheckClient(),
         detector=StaticDetector(score=None),
         credentials=StaticCredentialsReader(None),
+        reverse_image=StaticReverseImageSearch(None),
     )

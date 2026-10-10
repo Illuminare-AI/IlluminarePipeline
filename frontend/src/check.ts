@@ -9,10 +9,11 @@ export type CheckResult = {
     sources: { title: string; url: string; publisher: string; quote: string; rating: string | null }[];
   }[];
   origin: {
-    status: 'credentials_present' | 'possible_ai_signal' | 'no_signal_found' | 'unavailable';
+    status: 'credentials_present' | 'possible_ai_signal' | 'matched_reputable_source' | 'no_signal_found' | 'unavailable';
     note: string;
     credentials: { issuer: string; generator: string | null } | null;
     detector: { provider: string; score: number; threshold: number } | null;
+    matches?: { url: string; domain: string; title: string; kind: 'full' | 'partial' | 'page' }[];
   };
   persuasion: { tactic: string; phrase: string }[];
   from_memory: boolean;
@@ -32,7 +33,8 @@ export const exampleText = 'A new government rule requires everyone to register 
 export const labels = {
   supported: 'Supported', refuted: 'Refuted', missing_context: 'Missing context',
   not_enough_evidence: 'Not enough evidence', credentials_present: 'Content Credentials present',
-  possible_ai_signal: 'Possible AI signal', no_signal_found: 'No authenticity signal found',
+  possible_ai_signal: 'Possible AI signal', matched_reputable_source: 'Found on reputable sources',
+  no_signal_found: 'No authenticity signal found',
   unavailable: 'Origin checks unavailable',
 };
 export const tactics: Record<string, { name: string; explanation: string }> = {

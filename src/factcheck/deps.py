@@ -1,7 +1,7 @@
 """Dependency container. Build one per process; tests build their own with fakes."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .config import Settings, load_settings
 from .llm.base import LLM
@@ -9,6 +9,12 @@ from .models import Store
 from .services.c2pa import C2paReader, CredentialsReader
 from .services.detector import Detector, NullDetector, WalterWritesDetector
 from .services.factcheck_api import FactCheckClient, GoogleFactCheckClient, NullFactCheckClient
+from .services.reverse_image import (
+    GoogleVisionReverseImageSearch,
+    NullReverseImageSearch,
+    ReverseImageSearch,
+    parse_trusted_domains,
+)
 from .store.memory import InMemoryStore
 
 
@@ -20,6 +26,7 @@ class Deps:
     factcheck: FactCheckClient
     detector: Detector
     credentials: CredentialsReader
+    reverse_image: ReverseImageSearch = field(default_factory=NullReverseImageSearch)
 
 
 def build_deps(settings: Settings | None = None) -> Deps:
@@ -63,6 +70,17 @@ def build_deps(settings: Settings | None = None) -> Deps:
         else NullDetector()
     )
 
+    reverse_image: ReverseImageSearch = (
+        GoogleVisionReverseImageSearch(
+            api_key=s.reverse_image_api_key,
+            url=s.reverse_image_url,
+            trusted_domains=parse_trusted_domains(s.reverse_image_trusted_domains),
+            daily_limit=s.reverse_image_daily_limit,
+        )
+        if s.reverse_image_api_key
+        else NullReverseImageSearch()
+    )
+
     return Deps(
         settings=s,
         store=store,
@@ -70,4 +88,5 @@ def build_deps(settings: Settings | None = None) -> Deps:
         factcheck=factcheck,
         detector=detector,
         credentials=C2paReader(),
+        reverse_image=reverse_image,
     )

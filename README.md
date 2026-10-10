@@ -75,10 +75,18 @@ such as Pillow must match the interpreter. Always run tests through `.venv\Scrip
 
 Pass transcribed image text as `ocr_text` (multipart field or JSON key), or configure the
 companion OCR service. Stage 1 feeds that text to the model instead of asking it to transcribe.
+Send `describe_image=false` when the client already has the post text (the browser extension's
+post picker does): OCR and the detector still run on the image, the local vision description is skipped.
 
 Set `LLM_BACKEND=anthropic` and `ANTHROPIC_API_KEY` for real calls. Add `FACTCHECK_API_KEY`
 to enable stage 3 and `DETECTOR_API_KEY` (Walter Writes, `image_detector` scope) to enable the detector. Without them those stages are
 marked `skipped` on the card rather than failing.
+
+Set `REVERSE_IMAGE_API_KEY` (a Google API key with the Cloud Vision API enabled) to add a reverse
+image search to the origin card. Matches are kept only when they are on reputable domains, the
+built-in list in `services/reverse_image.py` or your own `REVERSE_IMAGE_TRUSTED_DOMAINS`. The
+search is free for 1,000 images a month; `REVERSE_IMAGE_DAILY_LIMIT` (default 30 per process)
+stops it from spending beyond that, after which the card simply omits the search.
 
 ## Stage map
 
@@ -89,7 +97,7 @@ marked `skipped` on the card rather than failing.
 | 2 memory | `s2_memory` | `memory` | no claims |
 | 3 fact-checks | `s3_factcheck` | `fact_check` | memory hit; no API key returns nothing |
 | 4 web | `s4_web` | `web` | memory or fact-check hit |
-| 5 origin | `s5_origin` | `origin` | never (unavailable without image) |
+| 5 origin | `s5_origin` | `origin` | never (unavailable without image); reverse search only with a key and budget |
 | 6 self-check | `s6_assemble` | `self_check` | only runs on web results |
 | 7 consistency | `s7_reconcile` | `consistency` | fewer than two claims, or all settled by fact-checks/memory |
 

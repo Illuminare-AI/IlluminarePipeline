@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     detector_url: str = "https://developer-portal.walterwrites.ai/api/image-detector/predict/"
     detector_threshold: float = 0.9  # on P(fake) + P(inpainting) in [0, 1]
 
+    # Reverse image search (Google Cloud Vision web detection). Enabled when the API key is set.
+    # Any Google API key whose project has the Vision API enabled works.
+    reverse_image_api_key: str | None = None
+    reverse_image_url: str = "https://vision.googleapis.com/v1/images:annotate"
+    reverse_image_daily_limit: int = 30  # per process; about 900/month stays inside the free tier
+    reverse_image_trusted_domains: str = ""  # comma-separated; empty uses the built-in list
+
     phash_max_distance: int = 10
 
     stage_timeout: float = 30.0

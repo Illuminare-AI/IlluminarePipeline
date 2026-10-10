@@ -14,6 +14,7 @@ await Promise.all([
   build({ ...common, entryPoints: ['src/background.ts'], outfile: `${out}/background.js`, format: 'esm' }),
   // Injected with chrome.scripting as a classic script, so it must be self-contained.
   build({ ...common, entryPoints: ['src/content.ts'], outfile: `${out}/content.js`, format: 'iife' }),
+  build({ ...common, entryPoints: ['src/picker.ts'], outfile: `${out}/picker.js`, format: 'iife' }),
   build({ ...common, entryPoints: ['src/sidepanel.tsx'], outfile: `${out}/sidepanel.js`, format: 'esm' }),
 ]);
 

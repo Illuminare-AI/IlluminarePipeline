@@ -14,6 +14,7 @@ import {
 const MENU_SELECTION = 'signal-selection';
 const MENU_IMAGE = 'signal-image';
 const MENU_REGION = 'signal-region';
+const MENU_POST = 'signal-post';
 
 let controller: AbortController | null = null;
 let keepAlive: ReturnType<typeof setInterval> | null = null;
@@ -22,6 +23,11 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({ id: MENU_SELECTION, title: 'Check selected text with Signal', contexts: ['selection'] });
     chrome.contextMenus.create({ id: MENU_IMAGE, title: 'Check this image with Signal', contexts: ['image'] });
+    chrome.contextMenus.create({
+      id: MENU_POST,
+      title: 'Check this post with Signal (pick from the page)',
+      contexts: ['page', 'selection', 'image', 'link'],
+    });
     chrome.contextMenus.create({
       id: MENU_REGION,
       title: 'Check a region of this page with Signal',
@@ -42,6 +48,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     void checkImage(info.srcUrl, info.selectionText ?? '', pageUrl, tab);
   } else if (info.menuItemId === MENU_REGION) {
     void startRegionSelection(tab);
+  } else if (info.menuItemId === MENU_POST) {
+    void startPostPicker(tab);
   }
 });
 
@@ -52,6 +60,8 @@ chrome.runtime.onMessage.addListener((message: PanelMessage | ContentMessage, se
     controller?.abort();
   } else if (message.type === 'region-selected' && sender.tab?.id !== undefined) {
     void captureRegion(sender.tab, message.rect, message.dpr);
+  } else if (message.type === 'element-selected' && sender.tab?.id !== undefined) {
+    void checkPickedElement(sender.tab, message);
   }
 });
 
@@ -115,6 +125,34 @@ async function startRegionSelection(tab: chrome.tabs.Tab) {
   }
 }
 
+async function startPostPicker(tab: chrome.tabs.Tab) {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id! }, files: ['picker.js'] });
+  } catch (error) {
+    await failWithoutRun({ kind: 'post', caption: '', sourceUrl: tab.url ?? '' }, error);
+  }
+}
+
+/** DOM capture: exact text goes as the caption, the post's photo (if any) as the image. */
+async function checkPickedElement(tab: chrome.tabs.Tab, picked: Extract<ContentMessage, { type: 'element-selected' }>) {
+  const input: JobInput = {
+    kind: 'post',
+    caption: picked.text,
+    sourceUrl: picked.permalink || tab.url || '',
+    timestamp: picked.timestamp || undefined,
+    describeImage: false,
+  };
+  try {
+    let image: Blob | null = null;
+    if (picked.imageUrl) image = await fetchImage(picked.imageUrl);
+    if (!image && picked.imageRect) image = await cropVisibleTab(tab.windowId, picked.imageRect, picked.dpr).catch(() => null);
+    if (!input.caption && !image) throw new Error('That element has no readable text or image. Try a region instead.');
+    await runJob(input, image);
+  } catch (error) {
+    await failWithoutRun(input, error);
+  }
+}
+
 async function captureRegion(tab: chrome.tabs.Tab, rect: Rect, dpr: number) {
   const input: JobInput = { kind: 'region', caption: '', sourceUrl: tab.url ?? '' };
   try {
@@ -157,6 +195,7 @@ async function runJob(input: JobInput, image: Blob | null) {
     form.append('caption', input.caption);
     form.append('ocr_text', '');
     if (input.sourceUrl) form.append('source_url', input.sourceUrl);
+    if (input.describeImage === false) form.append('describe_image', 'false');
     const base = await getBackendUrl();
     let response: Response;
     try {
