@@ -1,8 +1,21 @@
 # Fact-check pipeline (backend)
 
-Backend for the multimodal social media fact checker described in `plan.md`. Takes a post
+Multimodal social media fact checker. Takes a post
 (image and/or caption) and returns an evidence card. See `ANALYSIS.md` for known risks and
 open decisions.
+
+## Reorganized workspace
+
+- `src/factcheck/`: fact-check backend, port **8000**.
+- [frontend](frontend/README.md): React UI, Vite port **5173**; `/api` proxies to the backend.
+- [frontend/image-context](frontend/image-context/README.md): companion OCR/local vision service, port **8001**.
+- [reddit-bot](reddit-bot/README.md): separate Devvit scaffold and offline runner.
+
+The UI now uses the backend's evidence cards. Follow the frontend README for the combined
+PowerShell setup. `LLM_BACKEND=fake` remains the default and is labeled in the UI; enable
+Anthropic and its key for live model calls. Set `IMAGE_CONTEXT_URL=http://127.0.0.1:8001`
+to extract image text automatically through the companion service. Manual `ocr_text` overrides
+automatic OCR. OCR failures are reported in `stages.ocr` and other stages continue.
 
 ## Layout
 
@@ -26,15 +39,15 @@ eval/              cases.jsonl + run_eval.py test harness
 ## Run
 
 ```bash
-python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-cp .env.example .env            # LLM_BACKEND=fake works with no keys
-.venv/bin/pytest
-.venv/bin/uvicorn factcheck.api:app --reload
-curl -F image=@photo.jpg -F caption="Share before it's deleted!" localhost:8000/check
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item .env.example .env      # LLM_BACKEND=fake works with no keys
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m uvicorn factcheck.api:app --reload --port 8000
 ```
 
-OCR is the frontend's job: pass the transcribed image text as `ocr_text` (multipart field or JSON key)
-and stage 1 feeds it to the model instead of asking the model to read the image.
+Pass transcribed image text as `ocr_text` (multipart field or JSON key), or configure the
+companion OCR service. Stage 1 feeds that text to the model instead of asking it to transcribe.
 
 Set `LLM_BACKEND=anthropic` and `ANTHROPIC_API_KEY` for real calls. Add `FACTCHECK_API_KEY`
 to enable stage 3 and `DETECTOR_API_KEY` (Winston AI) to enable the detector. Without them those stages are

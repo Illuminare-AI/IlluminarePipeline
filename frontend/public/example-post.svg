@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="660" viewBox="0 0 720 660">
+  <rect width="720" height="660" rx="24" fill="#fff"/>
+  <circle cx="67" cy="69" r="26" fill="#e5eade"/>
+  <text x="56" y="77" font-family="Arial" font-size="22" fill="#55604c">N</text>
+  <text x="110" y="63" font-family="Arial" font-size="21" font-weight="bold" fill="#26372e">Neighborhood updates</text>
+  <text x="110" y="91" font-family="Arial" font-size="15" fill="#81877e">Suggested post · Fictional demo</text>
+  <rect x="36" y="125" width="648" height="235" rx="14" fill="#dfe8d5"/>
+  <path d="M255 260 L360 175 L465 260 V330 H255Z" fill="#748e68"/>
+  <path d="M240 260 L360 163 L480 260" fill="none" stroke="#445e3d" stroke-width="13" stroke-linecap="round"/>
+  <rect x="329" y="246" width="63" height="84" rx="5" fill="#c3d7ae"/>
+  <rect x="470" y="225" width="74" height="105" rx="9" fill="#f8fbf4"/>
+  <rect x="494" y="214" width="26" height="12" rx="3" fill="#f8fbf4"/>
+  <path d="M512 243 L495 274 H515 L501 309" fill="none" stroke="#748e68" stroke-width="7"/>
+  <text x="36" y="408" font-family="Arial" font-size="24" font-weight="bold" fill="#26372e">HOME BATTERY OWNERS: ACT NOW</text>
+  <text x="36" y="451" font-family="Arial" font-size="21" fill="#364338">A new government rule says you must</text>
+  <text x="36" y="484" font-family="Arial" font-size="21" fill="#364338">register your battery before Friday</text>
+  <text x="36" y="517" font-family="Arial" font-size="21" fill="#364338">or face a $500 fine. Share to warn others!</text>
+  <path d="M36 548 H684" stroke="#e8eae5"/>
+  <text x="36" y="586" font-family="Arial" font-size="17" fill="#858a80">248 reactions · 62 comments · 109 shares</text>
+  <text x="36" y="629" font-family="Arial" font-size="14" fill="#90968b">Made-up post for demonstration. No real regulation is referenced.</text>
+</svg>

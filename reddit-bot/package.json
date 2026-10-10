@@ -1,0 +1,16 @@
+{
+  "name": "signal-reddit-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "tsc --noEmit false --outDir dist/local",
+    "demo": "npm run compile && node dist/local/src/demo.js",
+    "test": "npm run compile && node --test dist/local/tests/*.test.js",
+    "check": "tsc --noEmit",
+    "build": "npm run check && esbuild src/server.ts --bundle --platform=node --format=cjs --outfile=dist/server/index.cjs",
+    "devvit": "devvit"
+  },
+  "dependencies": { "@devvit/web": "0.14.7", "hono": "^4.10.0", "@hono/node-server": "^1.19.0" },
+  "devDependencies": { "@devvit/cli": "0.14.7", "@devvit/shared-types": "0.14.7", "@types/node": "^24.0.0", "esbuild": "^0.25.0", "typescript": "~5.7.2" }
+}

@@ -222,3 +222,11 @@ __marimo__/
 # Project-specific
 traces/*
 !traces/.gitkeep
+
+# JavaScript projects moved into this repository
+node_modules/
+.npm-cache/
+*.tsbuildinfo
+.env.*
+!.env.example
+.tmp/

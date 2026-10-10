@@ -30,6 +30,8 @@ async def fingerprint(post: Post, store: Store) -> FingerprintResult:
     h = phash(post.image)
     candidates = await store.find_media(h)
     for cand in candidates:
-        if captions_near_identical(cand.caption, post.caption):
+        stored_text = cand.card.extraction.ocr_text if cand.card.extraction else ""
+        if (captions_near_identical(cand.caption, post.caption)
+                and stored_text.strip() == (post.ocr_text or "").strip()):
             return FingerprintResult(phash=h, media_match=cand)
     return FingerprintResult(phash=h, media_match=None)

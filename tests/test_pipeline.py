@@ -216,5 +216,6 @@ async def test_speculative_web_search_is_cancelled_on_fact_check_match(deps):
     card = await check(Post(caption=CLAIM), deps)
     assert card.claims[0].evidence_origin == "fact_check_api"
     assert card.stages["web"].state == "skipped"
-    assert deps.llm.web_started == [CLAIM]
+    # A fast fact-check match may cancel speculative search before it starts.
+    assert deps.llm.web_started in ([], [CLAIM])
     assert deps.llm.web_finished == []

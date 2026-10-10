@@ -1,12 +1,13 @@
 """FastAPI app. POST /check accepts multipart (image + caption + ocr_text) or JSON with base64 image.
 
-OCR is done by the frontend; send the transcribed image text as `ocr_text`.
+Supply transcribed image text as `ocr_text`, or configure the companion OCR service.
 """
 from __future__ import annotations
 
 import base64
 import logging
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
@@ -49,10 +50,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.post("/check", response_model=Card)
     async def check_multipart(
         request: Request,
-        image: UploadFile | None = File(default=None),
-        caption: str | None = Form(default=None),
-        ocr_text: str | None = Form(default=None),
-        source_url: str | None = Form(default=None),
+        image: Annotated[UploadFile | None, File()] = None,
+        caption: Annotated[str | None, Form()] = None,
+        ocr_text: Annotated[str | None, Form()] = None,
+        source_url: Annotated[str | None, Form()] = None,
     ):
         if request.headers.get("content-type", "").startswith("application/json"):
             body = CheckJson.model_validate(await request.json())
@@ -65,8 +66,8 @@ def create_app(deps: Deps | None = None) -> FastAPI:
             post = Post(image=data or None, caption=caption, ocr_text=ocr_text, source_url=source_url)
         if post.image and len(post.image) > MAX_IMAGE_BYTES:
             raise HTTPException(413, "image too large")
-        if not post.image and not (post.caption or "").strip():
-            raise HTTPException(400, "provide an image, a caption, or both")
+        if not post.image and not (post.caption or "").strip() and not (post.ocr_text or "").strip():
+            raise HTTPException(400, "provide an image, caption, or transcribed text")
         return await check(post, app.state.deps)
 
     @app.get("/checks/{check_id}/trace")

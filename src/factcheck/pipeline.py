@@ -12,6 +12,7 @@ import uuid
 
 from .deps import Deps
 from .models import Card, ClaimResult, OriginResult, Post
+from .services.ocr import read_image_text
 from .stages import (
     s0_fingerprint,
     s1_extract,
@@ -27,18 +28,31 @@ from .trace import Tracer, load_replay
 
 async def check(post: Post, deps: Deps) -> Card:
     s = deps.settings
+    request_post = post
     check_id = uuid.uuid4().hex[:12]
     tracer = Tracer(check_id, s.trace_dir)
-    card = Card(check_id=check_id)
+    card = Card(check_id=check_id, analysis_mode="fake" if s.llm_backend == "fake" else "live")
 
     if s.replay_mode:
         replayed = load_replay(s.trace_dir, post)
         if replayed is not None:
-            return replayed
+            return replayed.model_copy(update={"analysis_mode": "replay"})
 
-    if not post.image and not (post.caption or "").strip():
+    if not post.image and not (post.caption or "").strip() and not (post.ocr_text or "").strip():
         card.stages["input"] = skipped("empty post")
         return card
+
+    if post.image and not (post.ocr_text or "").strip() and s.image_context_url:
+        text, st = await run_stage("ocr", read_image_text(post, s), s.ocr_timeout)
+        card.stages["ocr"] = st
+        if text is not None:
+            post = post.model_copy(update={"ocr_text": text})
+        tracer.record("ocr", output=text, error=st.detail)
+    else:
+        card.stages["ocr"] = skipped(
+            "text supplied" if post.ocr_text else
+            "OCR service not configured" if post.image else "no image"
+        )
 
     # Stage 0: fingerprint and media memory
     fp, st = await run_stage("fingerprint", s0_fingerprint.fingerprint(post, deps.store), s.stage_timeout)
@@ -48,9 +62,10 @@ async def check(post: Post, deps: Deps) -> Card:
     if fp and fp.media_match:
         stored = fp.media_match.card
         card = stored.model_copy(
-            update={"check_id": check_id, "from_memory": True, "stages": {**stored.stages, "fingerprint": st}}
+            update={"check_id": check_id, "from_memory": True,
+                    "stages": {**stored.stages, "ocr": card.stages["ocr"], "fingerprint": st}}
         )
-        tracer.flush(card, post)
+        tracer.flush(card, request_post)
         return card
 
     # Stage 1: extract
@@ -93,7 +108,7 @@ async def check(post: Post, deps: Deps) -> Card:
         card.stages["save"] = _ok()
     except Exception as exc:  # noqa: BLE001
         card.stages["save"] = skipped(f"save failed: {exc}")
-    tracer.flush(card, post)
+    tracer.flush(card, request_post)
     return card
 
 
@@ -140,9 +155,14 @@ async def _resolve_claim(claim, post, ocr_text, deps, tracer) -> tuple[ClaimResu
         return mem, states
 
     # Stage 4 starts now; stage 3 runs in the foreground
-    web_task = asyncio.create_task(
-        run_stage("web", s4_web.web_evidence(claim, deps.llm, post.caption, ocr_text), s.web_stage_timeout)
-    )
+    async def search_web():
+        # Construct the coroutine inside the task, so early cancellation cannot leak it.
+        return await run_stage(
+            "web", s4_web.web_evidence(claim, deps.llm, post.caption, ocr_text),
+            s.web_stage_timeout,
+        )
+
+    web_task = asyncio.create_task(search_web())
 
     # Stage 3: existing fact-checks
     fc, st = await run_stage(

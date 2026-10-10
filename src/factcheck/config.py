@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     trace_dir: str = "traces"
     replay_mode: bool = False
     postgres_url: str | None = None
+    image_context_url: str | None = None
+    image_context_api_key: str | None = None
+    ocr_timeout: float = 25.0
 
 
 def load_settings() -> Settings:

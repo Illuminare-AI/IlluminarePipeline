@@ -104,6 +104,7 @@ class StageStatus(BaseModel):
 
 class Card(BaseModel):
     check_id: str
+    analysis_mode: Literal["live", "fake", "replay", "unknown"] = "unknown"
     claims: list[ClaimResult] = Field(default_factory=list)
     origin: OriginResult = Field(default_factory=OriginResult)
     persuasion: list[Tactic] = Field(default_factory=list)

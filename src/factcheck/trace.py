@@ -22,6 +22,8 @@ def post_key(post: Post) -> str:
     h.update(post.image or b"")
     h.update(b"\x00")
     h.update((post.caption or "").strip().lower().encode())
+    h.update(b"\x00")
+    h.update((post.ocr_text or "").strip().encode())
     return h.hexdigest()[:24]
 
 
