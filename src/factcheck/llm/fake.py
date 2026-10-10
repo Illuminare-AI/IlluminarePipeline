@@ -7,8 +7,10 @@ from __future__ import annotations
 import re
 
 from ..models import (
+    ClaimResult,
     ExtractionOutput,
     FactCheckDecision,
+    ReconcileOutput,
     SameClaimVerdict,
     Source,
     SupportCheck,
@@ -29,6 +31,7 @@ _TACTIC_CUES = {
 class FakeLLM:
     def __init__(self) -> None:
         self.web_results: dict[str, WebSearchOutcome] = {}
+        self.reconcile_output = ReconcileOutput()
         self.calls: list[str] = []
 
     def set_web_result(self, claim_keyword: str, outcome: WebSearchOutcome) -> None:
@@ -88,6 +91,10 @@ class FakeLLM:
             ),
             returned_urls=set(),
         )
+
+    async def reconcile_claims(self, claims: list[ClaimResult]) -> ReconcileOutput:
+        self.calls.append("reconcile_claims")
+        return self.reconcile_output
 
     async def check_support(self, sentences, quotes) -> SupportCheck:
         self.calls.append("check_support")

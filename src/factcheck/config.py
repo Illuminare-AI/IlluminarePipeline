@@ -17,16 +17,15 @@ class Settings(BaseSettings):
     factcheck_api_key: str | None = None
     factcheck_url: str = "https://factchecktools.googleapis.com/v1alpha1/claims:search"
 
-    # Winston AI image detection. The detector is enabled when the API key is set.
+    # Walter Writes AI image detection. The detector is enabled when the API key is set.
     detector_api_key: str | None = None
-    detector_url: str = "https://api.gowinston.ai/v2/image-detection"
-    detector_version: str | None = None  # Winston model version (e.g. "5"); None = API default
-    detector_threshold: float = 0.9  # on ai_probability in [0, 1]
+    detector_url: str = "https://developer-portal.walterwrites.ai/api/image-detector/predict/"
+    detector_threshold: float = 0.9  # on P(fake) + P(inpainting) in [0, 1]
 
     phash_max_distance: int = 10
 
-    stage_timeout: float = 10.0
-    web_stage_timeout: float = 90.0
+    stage_timeout: float = 30.0
+    web_stage_timeout: float = 180.0
 
     trace_dir: str = "traces"
     replay_mode: bool = False

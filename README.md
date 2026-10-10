@@ -1,6 +1,6 @@
 # Fact-check pipeline (backend)
 
-For the shorter Windows setup and the three startup commands, see [Quickstart](README-QUICKSTART.md).
+For the shorter Windows/Linux setup and the three startup commands, see [Quickstart](README-QUICKSTART.md).
 
 Multimodal social media fact checker. Takes a post
 (image and/or caption) and returns an evidence card. See `ANALYSIS.md` for known risks and
@@ -76,7 +76,7 @@ Pass transcribed image text as `ocr_text` (multipart field or JSON key), or conf
 companion OCR service. Stage 1 feeds that text to the model instead of asking it to transcribe.
 
 Set `LLM_BACKEND=anthropic` and `ANTHROPIC_API_KEY` for real calls. Add `FACTCHECK_API_KEY`
-to enable stage 3 and `DETECTOR_API_KEY` (Winston AI) to enable the detector. Without them those stages are
+to enable stage 3 and `DETECTOR_API_KEY` (Walter Writes, `image_detector` scope) to enable the detector. Without them those stages are
 marked `skipped` on the card rather than failing.
 
 ## Stage map
@@ -90,8 +90,15 @@ marked `skipped` on the card rather than failing.
 | 4 web | `s4_web` | `web` | memory or fact-check hit |
 | 5 origin | `s5_origin` | `origin` | never (unavailable without image) |
 | 6 self-check | `s6_assemble` | `self_check` | only runs on web results |
+| 7 consistency | `s7_reconcile` | `consistency` | fewer than two claims, or all settled by fact-checks/memory |
 
 Per-claim stage statuses are merged into one entry per stage: worst state wins, times are summed.
+
+Stage 7 reviews all of a post's claims together, since they are researched in isolation. It can
+rewrite an explanation in light of what sibling claims established, let a claim cite a sibling's
+sources, and change a label. Code enforces that only URLs already on the card can be borrowed,
+that `supported`/`refuted` still need two independent domains, that fact-check and memory results
+are never changed, and that rewritten explanations pass the stage 6 self-check.
 
 ## Postgres store
 

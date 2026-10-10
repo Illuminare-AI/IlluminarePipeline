@@ -1,7 +1,7 @@
 """Orchestration: check(post) -> Card.
 
-Order: 0 -> 1 -> 2 -> (3, 4 and 5 together; 4 is cancelled on a stage 3 hit) -> 6.
-Claims are resolved concurrently.
+Order: 0 -> 1 -> 2 -> (3, 4 and 5 together; 4 is cancelled on a stage 3 hit) -> 6 -> 7.
+Claims are resolved concurrently, then stage 7 reviews them together for consistency.
 Every stage runs through run_stage, so a failure or timeout marks the stage and the card still returns.
 """
 from __future__ import annotations
@@ -21,6 +21,7 @@ from .stages import (
     s4_web,
     s5_origin,
     s6_assemble,
+    s7_reconcile,
 )
 from .stages.runner import run_stage, skipped
 from .trace import Tracer, load_replay
@@ -128,10 +129,11 @@ async def check(post: Post, deps: Deps) -> Card:
             card.extraction.image_description = card.image_context.observations.description
         card.persuasion = ex.persuasion
         if not ex.claims:
-            for name in ("memory", "fact_check", "web", "self_check"):
+            for name in ("memory", "fact_check", "web", "self_check", "consistency"):
                 card.stages[name] = skipped("nothing checkable")
         else:
             card.claims = await _resolve_claims(ex.claims, post, ex.ocr_text, deps, card, tracer)
+            card.claims = await _reconcile_claims(card.claims, deps, card, tracer)
 
     origin, st = await origin_task
     card.stages["origin"] = st
@@ -151,6 +153,22 @@ def _ok():
     from .models import StageStatus
 
     return StageStatus(state="ok", ms=0)
+
+
+async def _reconcile_claims(claims, deps, card, tracer) -> list[ClaimResult]:
+    """Stage 7: review all claims together. On failure the per-claim results stand."""
+    if len(claims) < 2:
+        card.stages["consistency"] = skipped("single claim")
+        return claims
+    if all(c.evidence_origin in s7_reconcile.PROTECTED_ORIGINS for c in claims):
+        card.stages["consistency"] = skipped("all claims settled by fact-checks or memory")
+        return claims
+    revised, st = await run_stage(
+        "consistency", s7_reconcile.reconcile(claims, deps.llm), deps.settings.stage_timeout
+    )
+    card.stages["consistency"] = st
+    tracer.record("consistency", input=claims, output=revised, error=st.detail)
+    return revised or claims
 
 
 async def _resolve_claims(claims, post, ocr_text, deps, card, tracer) -> list[ClaimResult]:

@@ -1,11 +1,10 @@
 """AI-image detector adapter (stage 5). Swap providers by implementing `Detector`.
 
-The production adapter targets Winston AI's image detection endpoint:
-https://docs.gowinston.ai/api-reference/v2/image-detection/post
+The production adapter targets the Walter Writes AI image detector:
+https://docs.walterwrites.ai/api-reference/image-detector
 """
 from __future__ import annotations
 
-import base64
 import logging
 from typing import Any, Protocol
 
@@ -15,10 +14,22 @@ from ..models import DetectorSignal
 
 log = logging.getLogger(__name__)
 
-WINSTON_IMAGE_DETECTION_URL = "https://api.gowinston.ai/v2/image-detection"
+WALTERWRITES_IMAGE_DETECTION_URL = "https://developer-portal.walterwrites.ai/api/image-detector/predict/"
 
-# Winston accepts JPG, JPEG, PNG and WEBP only; anything else is rejected with 415.
-WINSTON_SUPPORTED_MEDIA_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+# Walter Writes accepts JPEG, PNG, WebP, GIF, BMP and TIFF; anything else returns 400 invalid_payload.
+WALTERWRITES_SUPPORTED_MEDIA_TYPES = frozenset(
+    {"image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/tiff"}
+)
+WALTERWRITES_MAX_BYTES = 10 * 1024 * 1024
+
+_EXTENSIONS = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+    "image/bmp": "bmp",
+    "image/tiff": "tiff",
+}
 
 
 class Detector(Protocol):
@@ -38,78 +49,91 @@ class NullDetector:
         return None
 
 
-class WinstonDetector:
-    """Winston AI image detection (POST /v2/image-detection).
+class WalterWritesDetector:
+    """Walter Writes AI image detection (POST /api/image-detector/predict/).
 
-    Request: JSON with a base64 data URL in `image` (or a public `url`), optional `version`.
-    Response: `ai_probability` and `human_probability` in [0, 1], and `score` as a 0-100
-    *human* probability. The signal we emit is the AI probability so that
-    `score >= threshold` keeps its meaning in stage 5.
+    Request: multipart/form-data with the image in `file`; `X-API-Key` header with the
+    `image_detector` scope. Response: `prediction` ("real", "fake" or "inpainting"),
+    `confidence`, and `probabilities` for the three classes summing to about 1.
 
-    Provider constraints worth knowing: images must be at least 256x256, roughly 4 MB or
-    less, and each call costs 300 credits. Failures raise, and stage 5 reports the detector
-    as unavailable rather than guessing.
+    The signal we emit is the probability that AI was involved at all, i.e.
+    `fake + inpainting` (equivalently `1 - real`), so that `score >= threshold` keeps its
+    meaning in stage 5: "fake" is a fully generated image, "inpainting" is a real image with
+    AI-edited regions. Both are AI signals for a fact-check card.
+
+    Provider constraints worth knowing: files up to 10 MB, pricing by megapixel (6 credits
+    minimum, 17 at 4K and above), and a per-plan rate limit of 5 requests/min on the trial
+    plan (429 when exceeded). Failures raise, and stage 5 reports the detector as
+    unavailable rather than guessing. Failed requests are refunded by the provider.
     """
 
-    name = "winston-ai"
+    name = "walterwrites"
 
     def __init__(
         self,
         api_key: str,
-        url: str = WINSTON_IMAGE_DETECTION_URL,
+        url: str = WALTERWRITES_IMAGE_DETECTION_URL,
         threshold: float = 0.9,
-        version: str | None = None,
         timeout: float = 8.0,
         transport: httpx.AsyncBaseTransport | None = None,
     ):
         self.url = url
         self.api_key = api_key
         self.threshold = threshold
-        self.version = version
         self.timeout = timeout
         self._transport = transport
 
-    def _body(self, image: bytes, media_type: str) -> dict[str, Any]:
-        data_url = f"data:{media_type};base64,{base64.b64encode(image).decode('ascii')}"
-        body: dict[str, Any] = {"image": data_url}
-        if self.version:
-            body["version"] = self.version
-        return body
-
     async def score(self, image: bytes, media_type: str) -> DetectorSignal | None:
-        if media_type not in WINSTON_SUPPORTED_MEDIA_TYPES:
-            log.info("winston: skipping unsupported media type %s", media_type)
+        if media_type not in WALTERWRITES_SUPPORTED_MEDIA_TYPES:
+            log.info("walterwrites: skipping unsupported media type %s", media_type)
             return None
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
+        if len(image) > WALTERWRITES_MAX_BYTES:
+            log.info("walterwrites: skipping image of %d bytes (limit 10 MB)", len(image))
+            return None
+        headers = {"X-API-Key": self.api_key, "Accept": "application/json"}
+        files = {"file": (f"image.{_EXTENSIONS[media_type]}", image, media_type)}
         async with httpx.AsyncClient(timeout=self.timeout, transport=self._transport) as client:
-            r = await client.post(self.url, headers=headers, json=self._body(image, media_type))
+            r = await client.post(self.url, headers=headers, files=files)
             if r.status_code >= 400:
                 detail = ""
                 try:
                     err = r.json()
-                    detail = f" {err.get('error', '')}: {err.get('description', '')}".rstrip(": ")
+                    if isinstance(err, dict):
+                        parts = [str(err[k]) for k in ("code", "error", "detail", "message") if err.get(k)]
+                        detail = " " + ": ".join(parts) if parts else ""
                 except ValueError:
                     pass
-                log.warning("winston: HTTP %s%s", r.status_code, detail)
+                log.warning("walterwrites: HTTP %s%s", r.status_code, detail)
                 r.raise_for_status()
             return self._parse(r.json())
 
-    def _parse(self, data: dict[str, Any]) -> DetectorSignal | None:
-        ai = data.get("ai_probability")
-        if isinstance(ai, (int, float)) and not isinstance(ai, bool):
-            score = float(ai)
+    def _parse(self, data: Any) -> DetectorSignal | None:
+        if not isinstance(data, dict):
+            return None
+        probs = data.get("probabilities")
+        probs = probs if isinstance(probs, dict) else {}
+        verdict = data.get("prediction")
+        verdict = verdict if isinstance(verdict, str) else None
+
+        fake, inpainting, real = (_number(probs.get(k)) for k in ("fake", "inpainting", "real"))
+        if fake is not None or inpainting is not None:
+            score = (fake or 0.0) + (inpainting or 0.0)
+        elif real is not None:
+            score = 1.0 - real
         else:
-            # Fall back to `score`, which Winston defines as human probability on 0-100.
-            human = data.get("score")
-            if not isinstance(human, (int, float)) or isinstance(human, bool):
+            # No class breakdown: fall back to the verdict's own confidence.
+            confidence = _number(data.get("confidence"))
+            if verdict is None or confidence is None:
                 return None
-            score = 1.0 - float(human) / 100.0
+            score = 1.0 - confidence if verdict == "real" else confidence
         score = min(1.0, max(0.0, score))
-        return DetectorSignal(provider=self.name, score=score, threshold=self.threshold)
+        return DetectorSignal(provider=self.name, score=score, threshold=self.threshold, verdict=verdict)
+
+
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
 
 
 class StaticDetector:

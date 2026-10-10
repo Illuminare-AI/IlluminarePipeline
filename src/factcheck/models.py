@@ -81,6 +81,7 @@ class DetectorSignal(BaseModel):
     provider: str
     score: float
     threshold: float
+    verdict: str | None = None  # provider label, e.g. "real", "fake", "inpainting"
 
 
 class OriginResult(BaseModel):
@@ -180,3 +181,22 @@ class WebEvidence(BaseModel):
 
 class SupportCheck(BaseModel):
     supported: list[bool] = Field(description="One entry per explanation sentence, in order")
+
+
+class ClaimRevision(BaseModel):
+    """One change proposed by the cross-claim review (stage 7). Omitted fields keep their value."""
+
+    claim_index: int = Field(description="Index of the claim in the list you were given")
+    label: ClaimLabel | None = Field(default=None, description="New label, or null to keep it")
+    explanation: str | None = Field(
+        default=None, description="Rewritten explanation of at most three sentences, or null to keep it"
+    )
+    borrow_sources: list[str] = Field(
+        default_factory=list,
+        description="URLs of sources attached to OTHER claims in the list that this claim should also cite",
+    )
+    reason: str = Field(default="", description="One sentence on why the change is needed")
+
+
+class ReconcileOutput(BaseModel):
+    revisions: list[ClaimRevision] = Field(default_factory=list)

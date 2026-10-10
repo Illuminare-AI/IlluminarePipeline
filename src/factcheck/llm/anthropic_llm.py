@@ -11,8 +11,10 @@ import base64
 import anthropic
 
 from ..models import (
+    ClaimResult,
     ExtractionOutput,
     FactCheckDecision,
+    ReconcileOutput,
     SameClaimVerdict,
     SupportCheck,
     WebEvidence,
@@ -134,6 +136,21 @@ class AnthropicLLM:
             model=self.fast_model,
         )
         return WebSearchOutcome(evidence=evidence, returned_urls=returned_urls)
+
+    async def reconcile_claims(self, claims: list[ClaimResult]) -> ReconcileOutput:
+        blocks = []
+        for i, c in enumerate(claims):
+            lines = [
+                f"[{i}] claim: {c.claim}",
+                f"    label: {c.label} | evidence origin: {c.evidence_origin}",
+                f"    explanation: {c.explanation or '(none)'}",
+            ]
+            for s in c.sources:
+                lines.append(f"    source: {s.url} | {s.publisher or s.title} | quote: {s.quote!r}")
+            if not c.sources:
+                lines.append("    source: (none)")
+            blocks.append("\n".join(lines))
+        return await self._parse(prompts.RECONCILE_SYSTEM, "\n\n".join(blocks), ReconcileOutput)
 
     async def check_support(self, sentences: list[str], quotes: list[str]) -> SupportCheck:
         numbered = "\n".join(f"[{i}] {s}" for i, s in enumerate(sentences))

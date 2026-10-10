@@ -10,16 +10,15 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       FACTCHECK_API_KEY: ${FACTCHECK_API_KEY:-}
       DETECTOR_API_KEY: ${DETECTOR_API_KEY:-}
-      DETECTOR_URL: ${DETECTOR_URL:-https://api.gowinston.ai/v2/image-detection}
-      DETECTOR_VERSION: ${DETECTOR_VERSION:-}
+      DETECTOR_URL: ${DETECTOR_URL:-https://developer-portal.walterwrites.ai/api/image-detector/predict/}
       DETECTOR_THRESHOLD: ${DETECTOR_THRESHOLD:-0.9}
       IMAGE_CONTEXT_URL: http://image-context:8001
       IMAGE_CONTEXT_API_KEY: ${IMAGE_CONTEXT_API_KEY:-}
       OCR_TIMEOUT: ${OCR_TIMEOUT:-25}
       IMAGE_VISION_ENABLED: "true"
       IMAGE_CONTEXT_TIMEOUT: ${IMAGE_CONTEXT_TIMEOUT:-600}
-      STAGE_TIMEOUT: ${STAGE_TIMEOUT:-10}
-      WEB_STAGE_TIMEOUT: ${WEB_STAGE_TIMEOUT:-90}
+      STAGE_TIMEOUT: ${STAGE_TIMEOUT:-30}
+      WEB_STAGE_TIMEOUT: ${WEB_STAGE_TIMEOUT:-180}
       POSTGRES_URL: ""
       TRACE_DIR: /app/traces
     volumes:

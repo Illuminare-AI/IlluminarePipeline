@@ -7,7 +7,7 @@ from .config import Settings, load_settings
 from .llm.base import LLM
 from .models import Store
 from .services.c2pa import C2paReader, CredentialsReader
-from .services.detector import Detector, NullDetector, WinstonDetector
+from .services.detector import Detector, NullDetector, WalterWritesDetector
 from .services.factcheck_api import FactCheckClient, GoogleFactCheckClient, NullFactCheckClient
 from .store.memory import InMemoryStore
 
@@ -54,11 +54,10 @@ def build_deps(settings: Settings | None = None) -> Deps:
     )
 
     detector: Detector = (
-        WinstonDetector(
+        WalterWritesDetector(
             api_key=s.detector_api_key,
             url=s.detector_url,
             threshold=s.detector_threshold,
-            version=s.detector_version,
         )
         if s.detector_api_key
         else NullDetector()

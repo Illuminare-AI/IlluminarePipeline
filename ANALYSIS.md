@@ -28,8 +28,8 @@
 5. **Detectors are unreliable on platform-processed images, and the false-accusation cost is the
    highest in the project.** The scaffold uses a high threshold (0.9), names the detector, and never
    lets the origin result touch the claim label. The "no signal found" note explicitly says it is not
-   verification. The detector is Winston AI (`WinstonDetector`); the emitted score is its `ai_probability`,
-   not the 0-100 human-probability `score` field.
+   verification. The detector is Walter Writes (`WalterWritesDetector`); the emitted score is
+   `P(fake) + P(inpainting)`, so a real photo with AI-edited regions counts as a signal too.
 
 6. **C2PA will almost never be present on social media images.** Platforms strip metadata on
    upload. Expect credentials only on demo images you generate yourself with a tool that signs

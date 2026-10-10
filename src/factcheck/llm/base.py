@@ -5,8 +5,10 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from ..models import (
+    ClaimResult,
     ExtractionOutput,
     FactCheckDecision,
+    ReconcileOutput,
     SameClaimVerdict,
     SupportCheck,
     WebEvidence,
@@ -39,3 +41,5 @@ class LLM(Protocol):
     async def web_evidence(self, claim: str) -> WebSearchOutcome: ...
 
     async def check_support(self, sentences: list[str], quotes: list[str]) -> SupportCheck: ...
+
+    async def reconcile_claims(self, claims: list[ClaimResult]) -> ReconcileOutput: ...
