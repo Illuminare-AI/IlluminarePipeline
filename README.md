@@ -1,4 +1,4 @@
-# Luminate: A little context before you share
+# Signal: A little context before you share
 
 Luminate provides instant context for social media posts, right where you read them. Right-click a post in Chrome or drop a screenshot into the web app. In the time it takes to read the comments, Luminate delivers a source-backed verdict, analyzes the image's origin (including AI generation signals), and flags persuasion tactics used in the text.
 
@@ -6,7 +6,7 @@ Luminate provides instant context for social media posts, right where you read t
 
 ## The problem we are solving
 
-Fact-checks arrive too late. By the time a community note or debunk appears, most users have already scrolled past. This delay cuts both ways: false posts spread unchallenged, while authentic photos and quotes are dismissed as "probably AI" because readers lack a quick way to verify them. 
+Fact-checks arrive too late. By the time a community note or debunk appears, most users have already scrolled past. This delay cuts both ways: false posts spread unchallenged, while authentic photos and quotes are dismissed as "probably AI" because readers lack a quick way to verify them.
 
 Luminate moves verification to the moment of reading. It allows people to stay informed without leaving their feed and ensures human-made content gets a fair hearing instead of blanket suspicion.
 
@@ -39,25 +39,25 @@ A check is processed through a pipeline of specialized, time-boxed stages. If a 
    - **Published Checks:** Queries the Google Fact Check Tools API and maps publisher ratings to Luminate's labels.
    - **Web Research:** A model with a search tool drafts a short report. **Strict code rules apply:** sources must be actual returned URLs, definitive labels require two independent domains, and every sentence must be backed by a quoted passage (or it is dropped).
 5. **Reconcile:** Claims are reviewed together. A claim can cite a sibling's sources to resolve contradictions, maintaining the same strict evidence rules.
-6. **Origin Signals (Parallel):** Checks for Content Credentials (C2PA), runs an AI-image detector, and performs a reverse image search filtered to reputable publishers (Wikimedia, wire services, major newsrooms). 
+6. **Origin Signals (Parallel):** Checks for Content Credentials (C2PA), runs an AI-image detector, and performs a reverse image search filtered to reputable publishers (Wikimedia, wire services, major newsrooms).
 7. **Summarize:** The final headline verdict (Likely false, Partly false, Needs context, Checks out, Unverified) is calculated via code based on the underlying labels. It can never claim more than the compiled evidence supports.
 
-The resulting card mirrors a critical reader's internal monologue: *Where did this come from? What is it claiming? How is it trying to persuade me?*
+The resulting card mirrors a critical reader's internal monologue: _Where did this come from? What is it claiming? How is it trying to persuade me?_
 
 ## Core design principles
 
 - **Code enforces the evidence, not the prompt.** Hallucinated sources, single-source verdicts, and unsupported sentences are programmatically stripped out. A confident LLM cannot talk its way past the evidence rules.
-- **Local by default where privacy matters.** OCR and image descriptions run locally. The clients talk to a backend you control, requiring no user accounts.
+- **Local by default where privacy matters.** OCR and image descriptions run locally.
 - **Persuasion is a cue, not a verdict.** Manipulative phrasing (e.g., false urgency) is flagged for user awareness but never alters the factual label of a claim.
 - **Fast enough for live reading.** The research stage uses a fast model with capped search limits. Heavy tasks are cached, and detectors have strict spending/timeout caps.
 
 ## Getting started
 
-The fastest way to spin this up on Windows or Linux is via the [Quickstart guide](README-QUICKSTART.md) (one setup script, one model script, three terminals). 
+The fastest way to spin this up on Windows or Linux is via the [Quickstart guide](README-QUICKSTART.md) (one setup script, one model script, three terminals).
 
 To build the extension, run `npm run build` and load `extension/dist` as an unpacked extension in Chrome. For backend configuration, stage mapping, and Postgres setup, see [`src/README.md`](src/README.md).
 
-**API Keys & Offline Mode:** 
+**API Keys & Offline Mode:**
 Without API keys, the backend automatically falls back to a clearly labeled offline mode using simple rules—perfect for testing the flow. Live fact-checking requires an Anthropic key. The AI detector, published fact-checks, and reverse image search can each be enabled with their respective keys.
 
 ## Repository layout
@@ -73,13 +73,3 @@ tests/                  # Offline tests with a fake model backend
 scripts/                # Setup scripts (PowerShell and bash)
 ANALYSIS.md             # Known risks and architecture decisions
 ```
-
-## Limits and honesty
-
-Luminate is a hackathon project designed as a first pass, not a definitive oracle. 
-
-- AI-image detectors are notoriously unreliable on recompressed images (Luminate reports this as a raw score, not a conclusion).
-- Web evidence is strictly limited to what is published and indexable at the exact moment of the check. 
-- Stored verdicts can go stale over time. 
-
-Luminate is built to hand you sources, context, and caveats quickly so that your own judgment is better informed—never replaced.
