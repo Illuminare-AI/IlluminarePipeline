@@ -1,6 +1,6 @@
 # Reddit image-context bot scaffold
 
-Mention `u/signal-context-demo` in a comment to extract image context from its containing post. A nested reply still uses the submission, not the immediate parent comment. Missing, deleted/removed and image-less posts produce explicit errors. The scaffold supports direct Reddit images and gallery media, up to four images; it does not follow arbitrary article pages, videos or crosspost chains.
+Mention `u/luminate-context` in a comment to extract image context from its containing post. A nested reply still uses the submission, not the immediate parent comment. Missing, deleted/removed and image-less posts produce explicit errors. The scaffold supports direct Reddit images and gallery media, up to four images; it does not follow arbitrary article pages, videos or crosspost chains.
 
 ## Local demo (no Reddit account or posting)
 

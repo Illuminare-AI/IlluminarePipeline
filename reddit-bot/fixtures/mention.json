@@ -1,4 +1,4 @@
 {
-  "comment": { "id": "t1_demo", "postId": "t3_demo", "parentId": "t3_demo", "authorName": "demo-user", "body": "u/signal-context-demo describe this image", "subredditName": "signal-demo" },
+  "comment": { "id": "t1_demo", "postId": "t3_demo", "parentId": "t3_demo", "authorName": "demo-user", "body": "u/luminate-context describe this image", "subredditName": "signal-demo" },
   "post": { "id": "t3_demo", "title": "Fictional screenshot for local testing", "body": "No real Reddit data is fetched by this fixture.", "imageUrls": [] }
 }

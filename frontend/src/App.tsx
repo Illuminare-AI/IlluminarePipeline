@@ -98,12 +98,12 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <a className="brand" href="#" aria-label="Signal home"><span className="brand-mark"><ScanLine size={22} strokeWidth={1.8} /></span>signal<span className="brand-dot">.</span></a>
+        <a className="brand" href="#" aria-label="Luminate home"><span className="brand-mark"><ScanLine size={22} strokeWidth={1.8} /></span>luminate<span className="brand-dot">.</span></a>
         <div className="header-right"><span className="demo-pill"><span />Screenshot analysis</span><button className="text-button how-button" onClick={() => setHowOpen(!howOpen)} aria-expanded={howOpen}>How it works <ChevronDown size={14} className={howOpen ? 'rotated' : ''} /></button><SettingsMenu ui={ui} onChange={setUi} /></div>
       </header>
 
       <main>
-        {howOpen && <section className="how-panel" aria-label="How Signal works"><strong>A screenshot. Three perspectives.</strong><p>Your image and context are sent to the analysis service to review origin signals, factual claims, and persuasion techniques. The local image service reads text and describes what is visible in the uploaded image. You can also supply the text yourself. Results identify when fact-checks use offline rules.</p><button className="text-button" onClick={() => setHowOpen(false)}>Got it <Check size={15} /></button></section>}
+        {howOpen && <section className="how-panel" aria-label="How Luminate works"><strong>A screenshot. Three perspectives.</strong><p>Your image and context are sent to the analysis service to review origin signals, factual claims, and persuasion techniques. The local image service reads text and describes what is visible in the uploaded image. You can also supply the text yourself. Results identify when fact-checks use offline rules.</p><button className="text-button" onClick={() => setHowOpen(false)}>Got it <Check size={15} /></button></section>}
         <section className="intro">
           <div className="eyebrow"><span className="little-line" /> PAUSE. CHECK. THEN SHARE.</div>
           <h1>A little context.<br />A clearer picture<span>.</span></h1>
@@ -156,7 +156,7 @@ export default function App() {
           </div>
         </section>}
       </main>
-      <footer><span className="footer-brand">signal.</span><span>A little curiosity goes a long way.</span><span className="footer-label">A SCREENSHOT-FIRST VERIFICATION DEMO</span></footer>
+      <footer><span className="footer-brand">luminate.</span><span>A little curiosity goes a long way.</span><span className="footer-label">A SCREENSHOT-FIRST VERIFICATION DEMO</span></footer>
     </div>
   );
 }

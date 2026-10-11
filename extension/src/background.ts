@@ -11,26 +11,26 @@ import {
   type Rect,
 } from './shared.ts';
 
-const MENU_SELECTION = 'signal-selection';
-const MENU_IMAGE = 'signal-image';
-const MENU_REGION = 'signal-region';
-const MENU_POST = 'signal-post';
+const MENU_SELECTION = 'luminate-selection';
+const MENU_IMAGE = 'luminate-image';
+const MENU_REGION = 'luminate-region';
+const MENU_POST = 'luminate-post';
 
 let controller: AbortController | null = null;
 let keepAlive: ReturnType<typeof setInterval> | null = null;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: MENU_SELECTION, title: 'Check selected text with Signal', contexts: ['selection'] });
-    chrome.contextMenus.create({ id: MENU_IMAGE, title: 'Check this image with Signal', contexts: ['image'] });
+    chrome.contextMenus.create({ id: MENU_SELECTION, title: 'Check selected text with Luminate', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: MENU_IMAGE, title: 'Check this image with Luminate', contexts: ['image'] });
     chrome.contextMenus.create({
       id: MENU_POST,
-      title: 'Check this post with Signal (pick from the page)',
+      title: 'Check this post with Luminate (pick from the page)',
       contexts: ['page', 'selection', 'image', 'link'],
     });
     chrome.contextMenus.create({
       id: MENU_REGION,
-      title: 'Check a region of this page with Signal',
+      title: 'Check a region of this page with Luminate',
       contexts: ['page', 'selection', 'image', 'link'],
     });
   });

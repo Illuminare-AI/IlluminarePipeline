@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "signal-context-demo",
+  "name": "luminate-context",
   "server": { "entry": "index.cjs", "dir": "dist/server" },
   "permissions": { "reddit": true, "redis": true },
   "settings": { "global": { "CONTEXT_API_KEY": { "type": "string", "label": "Image service API key", "isSecret": true } } },

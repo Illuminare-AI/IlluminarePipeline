@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { handleMention, parentPost, isSummoned, type Dependencies, type BotComment } from "../src/core.js";
 import { requestAnalysis } from "../src/client.js";
 
-const comment: BotComment = { id: "t1_trigger", postId: "t3_parent", parentId: "t1_nested", authorName: "someone", body: "u/signal-context-demo describe this" };
+const comment: BotComment = { id: "t1_trigger", postId: "t3_parent", parentId: "t1_nested", authorName: "someone", body: "u/luminate-context describe this" };
 function setup() {
   const replies: string[] = [];
   const claimed = new Set<string>();
   let calls = 0;
   const deps: Dependencies = {
-    username: "signal-context-demo",
+    username: "luminate-context",
     getPost: async id => ({ id, title: "Demo", imageUrls: ["https://i.redd.it/image.png"] }),
     analyze: async () => { calls++; return { images: [{ ocr: { status: "ok", text: "HELLO" }, vision: { status: "disabled" }, warnings: [] }] }; },
     reply: async (_id, text) => { replies.push(text); },
@@ -20,9 +20,9 @@ function setup() {
 }
 
 test("exact mention matching avoids other usernames and regular discussion", () => {
-  assert.equal(isSummoned("/u/Signal-Context-Demo, help", "signal-context-demo"), true);
-  assert.equal(isSummoned("u/signal-context-demo-other help", "signal-context-demo"), false);
-  assert.equal(isSummoned("signal-context-demo is nice", "signal-context-demo"), false);
+  assert.equal(isSummoned("/u/Luminate-Context, help", "luminate-context"), true);
+  assert.equal(isSummoned("u/luminate-context-other help", "luminate-context"), false);
+  assert.equal(isSummoned("luminate-context is nice", "luminate-context"), false);
 });
 test("nested comment resolves containing post", async () => {
   const { deps } = setup();

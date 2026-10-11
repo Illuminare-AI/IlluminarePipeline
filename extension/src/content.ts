@@ -1,7 +1,7 @@
 // Injected on demand: lets the user drag a rectangle, then reports it to the service worker.
 // Self-contained classic script (no imports), see build.mjs.
 (() => {
-  const flag = '__signalRegionSelectorActive';
+  const flag = '__luminateRegionSelectorActive';
   const w = window as unknown as Record<string, boolean>;
   if (w[flag]) return;
   w[flag] = true;

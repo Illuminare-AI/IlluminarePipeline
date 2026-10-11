@@ -3,7 +3,7 @@ import { Settings } from 'lucide-react';
 import { applyUiSettings, DEFAULT_UI, MODES, normalizeUiSettings, PALETTES, TEXT_SIZES, watchSystemTheme, type PaletteName, type UiSettings } from './theme';
 import { PALETTE_HEXES } from './palette';
 
-const STORAGE_KEY = 'signal.ui';
+const STORAGE_KEY = 'luminate.ui';
 
 function load(): UiSettings {
   try {

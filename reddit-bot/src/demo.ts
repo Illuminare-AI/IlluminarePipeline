@@ -10,7 +10,7 @@ const imagePath = value("--image");
 if (imagePath && fixture.post) fixture.post.imageBase64 = (await readFile(resolve(imagePath))).toString("base64");
 const claimed = new Set<string>();
 await handleMention(fixture.comment, {
-  username: process.env.BOT_USERNAME || "signal-context-demo",
+  username: process.env.BOT_USERNAME || "luminate-context",
   getPost: async id => fixture.post?.id === id ? fixture.post : undefined,
   analyze: (post, comment) => requestAnalysis(post, comment, {
     url: process.env.CONTEXT_SERVICE_URL || "http://127.0.0.1:8001",

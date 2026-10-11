@@ -14,7 +14,7 @@ type Picked = {
 };
 
 (() => {
-  const flag = '__signalPostPickerActive';
+  const flag = '__luminatePostPickerActive';
   const w = window as unknown as Record<string, boolean>;
   if (w[flag]) return;
   w[flag] = true;

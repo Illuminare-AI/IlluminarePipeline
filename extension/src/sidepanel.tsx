@@ -84,7 +84,7 @@ function App() {
   return (
     <div className="app">
       <header>
-        <h1><Sparkles size={16} /> Signal Check</h1>
+        <h1><Sparkles size={16} /> Luminate</h1>
         <div className="row">
           <span className={`pill ${health.state === 'online' ? 'on' : health.state === 'offline' ? 'off' : ''}`}>
             {health.state === 'checking' ? 'Checking backend' : health.state === 'online' ? `Backend online${health.mode === 'fake' ? ' (offline rules)' : ''}` : 'Backend offline'}
@@ -108,9 +108,9 @@ function App() {
         <section className="card">
           <h2>How to use</h2>
           <ol className="tips">
-            <li>Right-click a post and choose <b>Check this post with Signal</b>, then hover and click the post. Its text is read from the page, so no OCR or image description is needed.</li>
-            <li>Highlight text on a page, right-click, choose <b>Check selected text with Signal</b>.</li>
-            <li>Right-click an image and choose <b>Check this image with Signal</b>.</li>
+            <li>Right-click a post and choose <b>Check this post with Luminate</b>, then hover and click the post. Its text is read from the page, so no OCR or image description is needed.</li>
+            <li>Highlight text on a page, right-click, choose <b>Check selected text with Luminate</b>.</li>
+            <li>Right-click an image and choose <b>Check this image with Luminate</b>.</li>
             <li>Right-click anywhere and choose <b>Check a region of this page</b>, then drag a box around the post.</li>
           </ol>
           <p className="muted">Checks run on your local backend and can take a minute or two.</p>

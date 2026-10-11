@@ -1,4 +1,4 @@
-# Signal frontend
+# Luminate frontend
 
 The React + TypeScript app sends multipart requests to the root FastAPI fact-check backend. It renders every returned claim, linked evidence, origin signals, persuasion phrases, and incomplete-stage warnings. Backend offline/fake and replay results are clearly labeled.
 

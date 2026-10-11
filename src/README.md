@@ -1,18 +1,21 @@
 # Fact-check pipeline (backend)
 
-For the shorter Windows/Linux setup and the three startup commands, see [Quickstart](README-QUICKSTART.md).
+Developer reference for the Python service in `src/factcheck/`. For what the project is and who it
+is for, see the [repository README](../README.md).
+
+For the shorter Windows/Linux setup and the three startup commands, see [Quickstart](../README-QUICKSTART.md).
 
 Multimodal social media fact checker. Takes a post
-(image and/or caption) and returns an evidence card. See `ANALYSIS.md` for known risks and
+(image and/or caption) and returns an evidence card. See [`ANALYSIS.md`](../ANALYSIS.md) for known risks and
 open decisions.
 
 ## Reorganized workspace
 
 - `src/factcheck/`: fact-check backend, port **8000**.
-- [frontend](frontend/README.md): React UI, Vite port **5173**; `/api` proxies to the backend.
-- [frontend/image-context](frontend/image-context/README.md): companion OCR/local vision service, port **8001**.
-- [reddit-bot](reddit-bot/README.md): separate Devvit scaffold and offline runner.
-- [extension](extension/README.md): Chrome extension; right-click text, an image or a page region to check it in the side panel.
+- [frontend](../frontend/README.md): React UI, Vite port **5173**; `/api` proxies to the backend.
+- [frontend/image-context](../frontend/image-context/README.md): companion OCR/local vision service, port **8001**.
+- [reddit-bot](../reddit-bot/README.md): separate Devvit scaffold and offline runner.
+- [extension](../extension/README.md): Chrome extension; right-click text, an image or a page region to check it in the side panel.
 
 The UI now uses the backend's evidence cards. Follow the frontend README for the combined
 PowerShell setup. `LLM_BACKEND=fake` remains the default and is labeled in the UI; enable
@@ -34,9 +37,13 @@ port 8001. Vite's existing `/api` proxy connects to the published backend port. 
 root `.env` values for model/API configuration; without keys it defaults to the clearly labeled
 fake fact-check model. OCR and local vision are enabled between containers; Ollama downloads the image model on first launch. No hosted deployment is needed.
 
-The Docker backend uses an in-memory store and saves traces in a Docker volume. The existing
-Postgres container is optional (`docker compose up -d db`); the Python setup below supports
-connecting to it with the `db` extra. It is not connected to the default Docker API image.
+The backend image includes the `db` extra (Postgres store with CPU-only torch for embeddings,
+about 1 GB), so setting `POSTGRES_URL` on a deployed container works; without it the in-memory
+store is used and traces go to a Docker volume. Build with `--build-arg EXTRAS=` for a slim
+image without the store. The container listens on `$PORT` when set (Cloud Run) and on 8000
+otherwise. If `POSTGRES_URL` is set but the extra is missing, the service logs a warning and
+starts on the in-memory store instead of failing. The local Postgres container is optional
+(`docker compose up -d db`).
 
 ## Layout
 

@@ -1,4 +1,4 @@
-# Signal Check browser extension (Chrome)
+# Luminate browser extension (Chrome)
 
 Check part of any web page without opening the app. Right-click selected text, an image, or
 drag a box around a post; the result card opens in Chrome's side panel. The extension is a thin
@@ -21,19 +21,19 @@ the extension's card.
 
 ## Use
 
-- **A post, read from the page (fastest)**: right-click, choose **Check this post with Signal**,
+- **A post, read from the page (fastest)**: right-click, choose **Check this post with Luminate**,
   then hover until the post is outlined and click it. Arrow Up widens the outline to the parent
   element, Arrow Down narrows it again, Esc cancels. The post's text is read from the DOM, with
   counters, timestamps and buttons stripped, and sent as the caption; the post's main photo, if
   any, is sent as the image with `describe_image=false`, so the backend runs OCR and the AI
   detector on the photo but skips the slow local description. The post permalink is used as the
   source when one is found. Reddit's shadow DOM is handled.
-- **Selected text**: highlight text, right-click, choose **Check selected text with Signal**. The
+- **Selected text**: highlight text, right-click, choose **Check selected text with Luminate**. The
   text is sent as the caption and the page address as the source.
-- **An image**: right-click it, choose **Check this image with Signal**. The original file is
+- **An image**: right-click it, choose **Check this image with Luminate**. The original file is
   fetched when the image host allows it; otherwise the visible part of the image is captured
   from a screenshot of the tab.
-- **A region**: right-click anywhere, choose **Check a region of this page with Signal**, then
+- **A region**: right-click anywhere, choose **Check a region of this page with Luminate**, then
   drag a rectangle. Press Esc to cancel. The capture goes through the backend's OCR and local
   vision services like an upload in the app.
 - **Pasted text**: the side panel also has a text box with a **Check text** button.

@@ -1,6 +1,7 @@
 """Dependency container. Build one per process; tests build their own with fakes."""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 from .config import Settings, load_settings
@@ -17,6 +18,8 @@ from .services.reverse_image import (
 )
 from .store.memory import InMemoryStore
 
+log = logging.getLogger(__name__)
+
 
 @dataclass
 class Deps:
@@ -32,16 +35,19 @@ class Deps:
 def build_deps(settings: Settings | None = None) -> Deps:
     s = settings or load_settings()
 
-    store: Store
+    store: Store = InMemoryStore(phash_max_distance=s.phash_max_distance)
     if s.postgres_url:
-        from .store.postgres import PostgresStore
-
-        store = PostgresStore(
-            db_url=s.postgres_url,
-            phash_max_distance=s.phash_max_distance,
-        )
-    else:
-        store = InMemoryStore(phash_max_distance=s.phash_max_distance)
+        try:
+            from .store.postgres import PostgresStore
+        except ImportError as exc:
+            # The Postgres store needs the `db` extra (SQLAlchemy, asyncpg, sentence-transformers).
+            # Start anyway on the in-memory store rather than crash the service at import time.
+            log.warning(
+                "POSTGRES_URL is set but the Postgres store cannot be imported (%s). "
+                "Install the 'db' extra to enable it; using the in-memory store.", exc
+            )
+        else:
+            store = PostgresStore(db_url=s.postgres_url, phash_max_distance=s.phash_max_distance)
 
     if s.llm_backend == "anthropic":
         from .llm.anthropic_llm import AnthropicLLM
