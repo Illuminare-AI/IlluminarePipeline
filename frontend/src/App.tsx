@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowRight, Check, ChevronDown, Clipboard, FileImage, Fingerprint, ImagePlus, Info, LoaderCircle, ScanLine, ShieldCheck, Sparkles, Upload, X } from 'lucide-react';
 import { checkScreenshot, labels, sourceUrl, tactics, type CheckResult } from './check';
+import { SettingsMenu, useUiSettings } from './settings';
 
 const maxSize = 10 * 1024 * 1024;
 
@@ -15,6 +16,7 @@ export default function App() {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<CheckResult | null>(null);
   const [howOpen, setHowOpen] = useState(false);
+  const [ui, setUi] = useUiSettings();
   const inputRef = useRef<HTMLInputElement>(null);
   const controller = useRef<AbortController | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -97,7 +99,7 @@ export default function App() {
     <div className="app-shell">
       <header className="site-header">
         <a className="brand" href="#" aria-label="Signal home"><span className="brand-mark"><ScanLine size={22} strokeWidth={1.8} /></span>signal<span className="brand-dot">.</span></a>
-        <div className="header-right"><span className="demo-pill"><span />Screenshot analysis</span><button className="text-button how-button" onClick={() => setHowOpen(!howOpen)} aria-expanded={howOpen}>How it works <ChevronDown size={14} className={howOpen ? 'rotated' : ''} /></button></div>
+        <div className="header-right"><span className="demo-pill"><span />Screenshot analysis</span><button className="text-button how-button" onClick={() => setHowOpen(!howOpen)} aria-expanded={howOpen}>How it works <ChevronDown size={14} className={howOpen ? 'rotated' : ''} /></button><SettingsMenu ui={ui} onChange={setUi} /></div>
       </header>
 
       <main>
@@ -142,6 +144,7 @@ export default function App() {
 
         {result && <section className="results-section" ref={resultRef} aria-labelledby="results-title">
           <div className="results-heading"><div><span className="step-label">02 / THE BIGGER PICTURE</span><h2 id="results-title">Here’s a closer look.</h2></div><button className="text-button" onClick={() => { reset(); inputRef.current?.click(); }}>Check another <ArrowRight size={16} /></button></div>
+          {result.summary && <div className={`verdict-banner verdict-${result.summary.verdict}`} role="status"><span className="verdict-kicker">AT A GLANCE</span><h3>{result.summary.headline}</h3><p>{result.summary.detail} The analysis below shows the evidence.</p>{result.summary.flags.length > 0 && <div className="verdict-flags">{result.summary.flags.map(flag => <span className="verdict-flag" key={flag}>{flag}</span>)}</div>}</div>}
           <div className="result-disclaimer"><Info size={16} /><span><strong>{result.analysis_mode === 'fake' ? 'Offline fact-check mode.' : result.analysis_mode === 'replay' ? 'Replayed result.' : result.analysis_mode === 'unknown' ? 'Stored result; model configuration unknown.' : 'Backend analysis.'}</strong> {result.analysis_mode === 'fake' ? 'Claims are extracted by simple text rules; this is not a live fact-check.' : result.analysis_mode === 'replay' ? 'Saved output; this is not a new fact-check. Confirm the original model configuration.' : 'Review the evidence and service limitations before sharing.'} {isExample && 'The input is a fictional example.'} {result.from_memory && 'This check reused stored evidence.'}</span></div>
           {Object.entries(result.stages).filter(([name, status]) => status.state === 'failed' || status.state === 'timeout' || (name === 'ocr' && status.detail === 'OCR service not configured')).map(([name, status]) => <p className="error-message" key={name}>{name === 'ocr' ? 'Image text extraction' : name.replaceAll('_', ' ')}: {status.state === 'skipped' ? 'not configured. Supply the image text above to check its wording.' : 'unavailable for this check. Results may be incomplete.'}</p>)}
           {result.image_context?.vision_status === 'ok' && result.image_context.observations && <article className="result-card image-description"><div className="result-title"><FileImage size={20} /><h3>What’s in the image?</h3><span>Local model</span></div><p>{result.image_context.observations.description}</p>{result.image_context.observations.objects.length > 0 && <p><strong>Visible objects:</strong> {result.image_context.observations.objects.join(', ')}</p>}{result.image_context.observations.uncertainties.length > 0 && <p><strong>Uncertainties:</strong> {result.image_context.observations.uncertainties.join(' ')}</p>}<p className="small-note">Described locally by {result.image_context.model}. Observations can be incorrect and do not verify the claims.</p></article>}

@@ -47,7 +47,11 @@ def build_deps(settings: Settings | None = None) -> Deps:
         from .llm.anthropic_llm import AnthropicLLM
 
         llm: LLM = AnthropicLLM(
-            model=s.llm_model, api_key=s.anthropic_api_key, fast_model=s.llm_fast_model
+            model=s.llm_model,
+            api_key=s.anthropic_api_key,
+            fast_model=s.llm_fast_model,
+            search_model=s.llm_search_model,
+            search_max_uses=s.web_search_max_uses,
         )
     else:
         from .llm.fake import FakeLLM

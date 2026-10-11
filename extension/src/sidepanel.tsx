@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Fingerprint, Info, LoaderCircle, ScanLine, Settings, Sparkles, X } from 'lucide-react';
 import { labels, sourceUrl, tactics, type CheckResult } from '../../frontend/src/check';
+import { applyUiSettings, DEFAULT_UI, MODES, normalizeUiSettings, PALETTES, TEXT_SIZES, watchSystemTheme, type PaletteName, type UiSettings } from '../../frontend/src/theme';
+import { PALETTE_HEXES } from './palette.ts';
 import { DEFAULT_BACKEND, getBackendUrl, getJob, type Job, type PanelMessage } from './shared.ts';
 
 function send(message: PanelMessage) {
@@ -38,6 +40,23 @@ function useHealth(backend: string): Health {
   return health;
 }
 
+/** Display settings live in chrome.storage.sync so they follow the profile. */
+function useUiSettings(): [UiSettings, (next: UiSettings) => void] {
+  const [ui, setUiState] = useState<UiSettings>(DEFAULT_UI);
+  useEffect(() => {
+    void chrome.storage.sync.get('ui').then((stored) => setUiState(normalizeUiSettings(stored.ui)));
+  }, []);
+  useEffect(() => {
+    applyUiSettings(ui, PALETTE_HEXES);
+    return watchSystemTheme(() => applyUiSettings(ui, PALETTE_HEXES));
+  }, [ui]);
+  const setUi = (next: UiSettings) => {
+    setUiState(next);
+    void chrome.storage.sync.set({ ui: next });
+  };
+  return [ui, setUi];
+}
+
 function useElapsed(job: Job | null): number {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -54,6 +73,7 @@ function App() {
   const [backend, setBackend] = useState(DEFAULT_BACKEND);
   const [showSettings, setShowSettings] = useState(false);
   const [caption, setCaption] = useState('');
+  const [ui, setUi] = useUiSettings();
   const health = useHealth(backend);
   const elapsed = useElapsed(job);
 
@@ -73,7 +93,7 @@ function App() {
         </div>
       </header>
 
-      {showSettings && <SettingsCard backend={backend} onSaved={(url) => { setBackend(url); setShowSettings(false); }} />}
+      {showSettings && <SettingsCard backend={backend} ui={ui} onUi={setUi} onSaved={(url) => { setBackend(url); setShowSettings(false); }} />}
 
       <section className="card">
         <h2>Check text</h2>
@@ -131,6 +151,16 @@ function ResultCards({ result }: { result: CheckResult }) {
   const description = result.image_context?.observations?.description || result.extraction?.image_description;
   return (
     <>
+      {result.summary && (
+        <section className={`verdict verdict-${result.summary.verdict}`} role="status">
+          <span className="kicker">AT A GLANCE</span>
+          <h3>{result.summary.headline}</h3>
+          <p>{result.summary.detail}</p>
+          {result.summary.flags.length > 0 && (
+            <div className="verdict-flags">{result.summary.flags.map((flag) => <span className="badge" key={flag}>{flag}</span>)}</div>
+          )}
+        </section>
+      )}
       {result.analysis_mode === 'fake' && <p className="notice warn">The backend is using offline rules, not a live model. Verdicts are placeholders.</p>}
       {problems.map(([name]) => (
         <p className="notice warn" key={name}>{name.replaceAll('_', ' ')}: unavailable for this check. Results may be incomplete.</p>
@@ -201,7 +231,7 @@ function ResultCards({ result }: { result: CheckResult }) {
   );
 }
 
-function SettingsCard({ backend, onSaved }: { backend: string; onSaved: (url: string) => void }) {
+function SettingsCard({ backend, ui, onUi, onSaved }: { backend: string; ui: UiSettings; onUi: (next: UiSettings) => void; onSaved: (url: string) => void }) {
   const [value, setValue] = useState(backend);
   const [message, setMessage] = useState('');
 
@@ -239,6 +269,20 @@ function SettingsCard({ backend, onSaved }: { backend: string; onSaved: (url: st
         {message && <span className="notice error">{message}</span>}
       </div>
       <p className="muted" style={{ margin: 0 }}>A non-local URL asks for permission to contact that host.</p>
+      <label>Text size</label>
+      <div className="seg-row">
+        {TEXT_SIZES.map((t) => <button key={t.label} className={`seg ${ui.textScale === t.scale ? 'active' : ''}`} aria-pressed={ui.textScale === t.scale} onClick={() => onUi({ ...ui, textScale: t.scale })}>{t.label}</button>)}
+      </div>
+      <label>Theme</label>
+      <div className="seg-row">
+        {MODES.map((m) => <button key={m.mode} className={`seg ${ui.mode === m.mode ? 'active' : ''}`} aria-pressed={ui.mode === m.mode} onClick={() => onUi({ ...ui, mode: m.mode })}>{m.label}</button>)}
+      </div>
+      <label>Colours</label>
+      <div className="seg-row">
+        {(Object.keys(PALETTES) as PaletteName[]).map((name) => (
+          <button key={name} className={`swatch ${ui.palette === name ? 'active' : ''}`} title={PALETTES[name].label} aria-label={PALETTES[name].label} aria-pressed={ui.palette === name} style={{ background: PALETTES[name].swatch }} onClick={() => onUi({ ...ui, palette: name })} />
+        ))}
+      </div>
     </section>
   );
 }

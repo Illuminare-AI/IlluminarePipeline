@@ -44,7 +44,8 @@ One check runs at a time; starting another cancels the current one.
 
 ## Settings
 
-The panel's gear icon lets you change the backend URL. The default is `http://127.0.0.1:8000`.
+The panel's gear icon has display settings (text size, light/dark/system theme, colour palette),
+which are shared across the profile, and the backend URL. The default is `http://127.0.0.1:8000`.
 A different host asks for permission to contact it the first time, since the manifest only
 pre-authorises localhost. The backend has no authentication, so point it only at a server you
 control.

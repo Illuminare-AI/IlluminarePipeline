@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     llm_backend: Literal["anthropic", "fake"] = "fake"
     llm_model: str = "claude-opus-5"
     llm_fast_model: str = "claude-haiku-4-5"  # report structuring and self-check
+    llm_search_model: str = "claude-sonnet-5-5"  # stage 4 web research: the slowest call, tuned for speed
+    web_search_max_uses: int = 4  # searches per claim; each one adds a fetch-and-read round trip
     anthropic_api_key: str | None = None
 
     factcheck_api_key: str | None = None

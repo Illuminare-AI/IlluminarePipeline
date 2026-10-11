@@ -73,3 +73,10 @@ Set `IMAGE_CONTEXT_URL=http://127.0.0.1:8001` in the root `.env`, then restart t
 
 - [image-context](image-context/README.md): local OCR and Ollama descriptions of uploaded images.
 - [reddit-bot](../reddit-bot/README.md): Devvit scaffold and offline demo. Its live adapter remains disabled until configured and approved.
+
+## Display settings
+
+The gear in the header sets text size, light/dark/system theme and a colour palette, stored in
+`localStorage`. Every colour in `src/styles.css` is a `var(--c-<hex>)`; `src/theme.ts` recomputes
+those variables per theme. After editing the stylesheet with plain hex colours, re-run
+`python scripts/themeify-css.py frontend/src/styles.css frontend/src/palette.ts` from the repo root.

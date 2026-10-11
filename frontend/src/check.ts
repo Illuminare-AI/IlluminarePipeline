@@ -2,6 +2,7 @@ export type CheckInput = { image: File | null; caption: string; ocrText: string;
 export type CheckResult = {
   check_id: string;
   analysis_mode: 'live' | 'fake' | 'replay' | 'unknown';
+  summary?: { verdict: 'false' | 'mixed' | 'context' | 'true' | 'unverified' | 'nothing'; headline: string; detail: string; flags: string[] } | null;
   claims: {
     claim: string;
     label: 'supported' | 'refuted' | 'missing_context' | 'not_enough_evidence';

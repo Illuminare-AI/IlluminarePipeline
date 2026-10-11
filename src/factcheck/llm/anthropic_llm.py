@@ -25,18 +25,24 @@ from .base import WebSearchOutcome
 
 
 class AnthropicLLM:
-    """`model` handles judgement calls (extraction, claim matching, web research).
-    `fast_model` handles format conversion and yes/no checks (report structuring, self-check);
-    it takes no `effort` setting, since Haiku 4.5 rejects that parameter."""
+    """`model` handles judgement calls (extraction, claim matching, cross-claim review).
+    `search_model` runs the stage 4 web research loop, the slowest call in the pipeline, so it
+    defaults to Sonnet 5.5 for speed. `fast_model` handles format conversion and yes/no checks
+    (report structuring, self-check); it takes no `effort` setting, since Haiku 4.5 rejects
+    that parameter."""
 
     def __init__(
         self,
         model: str = "claude-opus-5",
         api_key: str | None = None,
         fast_model: str = "claude-haiku-4-5",
+        search_model: str = "claude-sonnet-5-5",
+        search_max_uses: int = 4,
     ) -> None:
         self.model = model
         self.fast_model = fast_model
+        self.search_model = search_model
+        self.search_max_uses = search_max_uses
         self.client = anthropic.AsyncAnthropic(api_key=api_key) if api_key else anthropic.AsyncAnthropic()
 
     async def _parse(
@@ -99,16 +105,22 @@ class AnthropicLLM:
         returned_urls: set[str] = set()
         report_parts: list[str] = []
         for _ in range(5):  # pause_turn restarts
-            response = await self.client.messages.create(
-                model=self.model,
+            # Beta endpoint for `fallbacks`: a safety refusal on the search model re-runs the
+            # request on a substitute model server-side instead of failing the stage.
+            response = await self.client.beta.messages.create(
+                model=self.search_model,
                 max_tokens=16000,
                 system=prompts.WEB_SEARCH_SYSTEM,
                 messages=messages,
-                tools=[{"type": "web_search_20260209", "name": "web_search", "max_uses": 6}],
+                tools=[{"type": "web_search_20260209", "name": "web_search", "max_uses": self.search_max_uses}],
                 output_config={"effort": "low"},
+                betas=["server-side-fallback-2026-07-01"],
+                fallbacks="default",
             )
             for block in response.content:
                 btype = getattr(block, "type", "")
+                if btype == "fallback":
+                    continue  # a substitute model took over after a refusal; the content follows
                 if btype == "web_search_tool_result":
                     results = getattr(block, "content", None)
                     if isinstance(results, list):  # an error result is an object, not a list

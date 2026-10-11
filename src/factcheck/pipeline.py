@@ -24,6 +24,7 @@ from .stages import (
     s7_reconcile,
 )
 from .stages.runner import run_stage, skipped
+from .summary import summarize
 from .trace import Tracer, load_replay
 
 
@@ -37,10 +38,13 @@ async def check(post: Post, deps: Deps) -> Card:
     if s.replay_mode:
         replayed = load_replay(s.trace_dir, post)
         if replayed is not None:
-            return replayed.model_copy(update={"analysis_mode": "replay"})
+            replayed = replayed.model_copy(update={"analysis_mode": "replay"})
+            replayed.summary = summarize(replayed)
+            return replayed
 
     if not post.image and not (post.caption or "").strip() and not (post.ocr_text or "").strip():
         card.stages["input"] = skipped("empty post")
+        card.summary = summarize(card)
         return card
 
     if post.image and s.image_vision_enabled and post.describe_image and s.image_context_url:
@@ -103,6 +107,7 @@ async def check(post: Post, deps: Deps) -> Card:
             card.extraction = card.extraction.model_copy(update={
                 "image_description": card.image_context.observations.description,
             })
+        card.summary = summarize(card)
         tracer.flush(card, request_post)
         return card
 
@@ -151,6 +156,7 @@ async def check(post: Post, deps: Deps) -> Card:
         card.stages["save"] = _ok()
     except Exception as exc:  # noqa: BLE001
         card.stages["save"] = skipped(f"save failed: {exc}")
+    card.summary = summarize(card)
     tracer.flush(card, request_post)
     return card
 

@@ -138,9 +138,19 @@ class LocalImageContext(BaseModel):
 # ---------- Card ----------
 
 
+class Summary(BaseModel):
+    """The glance view at the top of the card, derived in code from the sections below it."""
+
+    verdict: Literal["false", "mixed", "context", "true", "unverified", "nothing"]
+    headline: str
+    detail: str
+    flags: list[str] = Field(default_factory=list)
+
+
 class Card(BaseModel):
     check_id: str
     analysis_mode: Literal["live", "fake", "replay", "unknown"] = "unknown"
+    summary: Summary | None = None
     claims: list[ClaimResult] = Field(default_factory=list)
     origin: OriginResult = Field(default_factory=OriginResult)
     persuasion: list[Tactic] = Field(default_factory=list)

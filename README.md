@@ -78,7 +78,11 @@ companion OCR service. Stage 1 feeds that text to the model instead of asking it
 Send `describe_image=false` when the client already has the post text (the browser extension's
 post picker does): OCR and the detector still run on the image, the local vision description is skipped.
 
-Set `LLM_BACKEND=anthropic` and `ANTHROPIC_API_KEY` for real calls. Add `FACTCHECK_API_KEY`
+Set `LLM_BACKEND=anthropic` and `ANTHROPIC_API_KEY` for real calls. Three models are involved:
+`LLM_MODEL` for extraction, claim matching and the cross-claim review, `LLM_SEARCH_MODEL` (default
+Sonnet 5.5) for the stage 4 web research loop, which is the slowest call, and `LLM_FAST_MODEL` for
+structuring and yes/no checks. `WEB_SEARCH_MAX_USES` caps searches per claim; each one adds a
+fetch-and-read round trip, so it is the main latency knob. Add `FACTCHECK_API_KEY`
 to enable stage 3 and `DETECTOR_API_KEY` (Walter Writes, `image_detector` scope) to enable the detector. Without them those stages are
 marked `skipped` on the card rather than failing.
 
@@ -102,6 +106,9 @@ stops it from spending beyond that, after which the card simply omits the search
 | 7 consistency | `s7_reconcile` | `consistency` | fewer than two claims, or all settled by fact-checks/memory |
 
 Per-claim stage statuses are merged into one entry per stage: worst state wins, times are summed.
+
+The card also carries a `summary` (`summary.py`): a verdict headline derived in code from the claim
+labels, origin status and persuasion tags, shown above the detailed cards. No model call is involved.
 
 Stage 7 reviews all of a post's claims together, since they are researched in isolation. It can
 rewrite an explanation in light of what sibling claims established, let a claim cite a sibling's
