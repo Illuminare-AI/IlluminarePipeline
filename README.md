@@ -2,7 +2,7 @@
 
 Luminate provides instant context for social media posts, right where you read them. Right-click a post in Chrome or drop a screenshot into the web app. In the time it takes to read the comments, Luminate delivers a source-backed verdict, analyzes the image's origin (including AI generation signals), and flags persuasion tactics used in the text.
 
-**Demo video (2–3 minutes):** _[add the link here]_
+**Demo video (2–3 minutes):** [video](https://youtu.be/gPryaq86BUY)
 
 ## The problem we are solving
 
