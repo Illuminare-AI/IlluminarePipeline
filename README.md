@@ -6,7 +6,9 @@ Luminate provides instant context for social media posts, right where you read t
 
 ## The problem we are solving
 
-Fact-checks arrive too late. By the time a community note or debunk appears, most users have already scrolled past. This delay cuts both ways: false posts spread unchallenged, while authentic photos and quotes are dismissed as "probably AI" because readers lack a quick way to verify them.
+Fact-checks on social media posts arrive too late. By the time a community note or debunk appears, most users have already scrolled past. This is a major issue, given that over 53% of US adults get some of their news from social media.[^1]
+
+In addition, this delay has two consequences: false posts spread unchallenged, while authentic photos and quotes are dismissed as "likely AI" because readers lack a quick way to verify them.
 
 Luminate moves verification to the moment of reading. It allows people to stay informed without leaving their feed and ensures human-made content gets a fair hearing instead of blanket suspicion.
 
@@ -73,3 +75,7 @@ tests/                  # Offline tests with a fake model backend
 scripts/                # Setup scripts (PowerShell and bash)
 ANALYSIS.md             # Known risks and architecture decisions
 ```
+
+## Sources
+
+[^1]: St. Aubin, Christopher, and Jacob Liedke. “Social Media and News Fact Sheet.” Pew Research Center, Pew Research Center, 25 Sept. 2025, www.pewresearch.org/journalism/fact-sheet/social-media-and-news-fact-sheet/.
