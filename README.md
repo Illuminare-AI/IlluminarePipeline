@@ -57,7 +57,12 @@ The resulting card mirrors a critical reader's internal monologue: _Where did th
 
 The fastest way to spin this up on Windows or Linux is via the [Quickstart guide](README-QUICKSTART.md) (one setup script, one model script, three terminals).
 
-To build the extension, run `npm run build` and load `extension/dist` as an unpacked extension in Chrome. For backend configuration, stage mapping, and Postgres setup, see [`src/README.md`](src/README.md).
+On Windows, `scripts\setup.cmd` installs both Python services and all Node projects;
+`scripts\setup-model.cmd` configures the local vision model, and `scripts\start.cmd` starts the app.
+To build the extension from the repository root, run `npm.cmd --prefix extension run build`
+on Windows (`npm --prefix extension run build` on Linux), then load `extension/dist` as an
+unpacked extension in Chrome. For backend configuration, stage mapping, and Postgres setup,
+see [`src/README.md`](src/README.md).
 
 **API Keys & Offline Mode:**
 Without API keys, the backend automatically falls back to a clearly labeled offline mode using simple rules—perfect for testing the flow. Live fact-checking requires an Anthropic key. The AI detector, published fact-checks, and reverse image search can each be enabled with their respective keys.
