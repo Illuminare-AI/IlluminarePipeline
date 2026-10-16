@@ -1,11 +1,12 @@
 [CmdletBinding()]
-param([string]$PythonPath)
+param([string]$PythonPath, [switch]$SkipNode)
 
 $ErrorActionPreference = 'Stop'
 $taskRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $taskVenv = Join-Path $taskRoot '.venv'
 $taskPython = Join-Path $taskVenv 'Scripts/python.exe'
 $taskTemp = Join-Path $taskRoot '.tmp'
+$taskHelper = Join-Path $PSScriptRoot 'setup-support.py'
 
 function Invoke-Checked {
     param([string]$Executable, [string[]]$Arguments)
@@ -14,14 +15,16 @@ function Invoke-Checked {
 }
 
 if (-not $PythonPath) {
-    $taskCandidate = if (Test-Path -LiteralPath $taskPython) { $taskPython } else { (Get-Command python -ErrorAction Stop).Source }
-    $PythonPath = & $taskCandidate -c 'import sys; print(sys._base_executable)'
+    # Discover the base interpreter independently of a possibly broken existing .venv.
+    $taskCandidate = (Get-Command python.exe -ErrorAction SilentlyContinue).Source
+    if (-not $taskCandidate) { $taskCandidate = (Get-Command py.exe -ErrorAction Stop).Source }
+    $PythonPath = & $taskCandidate $taskHelper base
     if ($LASTEXITCODE -ne 0) { throw 'Provide a working base Python executable with -PythonPath.' }
     $PythonPath = $PythonPath | Select-Object -Last 1
 }
 $PythonPath = (Resolve-Path -LiteralPath $PythonPath).Path
-Invoke-Checked $PythonPath @('-c', 'import sys; assert sys.version_info >= (3, 11), "Python 3.11 or newer required"; import pip')
-$taskBaseVersion = & $PythonPath -c 'import sys; print("%s.%s" % sys.version_info[:2])'
+$taskBaseVersion = & $PythonPath $taskHelper version
+if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 or newer required.' }
 
 New-Item -ItemType Directory -Force -Path $taskTemp | Out-Null
 $taskOldTemp = $env:TEMP
@@ -33,12 +36,15 @@ try {
     if (Test-Path -LiteralPath $taskVenv) {
         $taskValid = $false
         if (Test-Path -LiteralPath $taskPython) {
-            $taskEnvVersion = & $taskPython -c 'import sys; print("%s.%s" % sys.version_info[:2])' 2>$null
+            # Native stderr becomes a terminating error under Windows PowerShell 5.1.
+            $ErrorActionPreference = 'Continue'
+            $taskEnvVersion = & $taskPython $taskHelper version 2>$null
             if ($LASTEXITCODE -eq 0 -and $taskEnvVersion -eq $taskBaseVersion) {
                 # Missing packages are installed below; broken native imports require a clean environment.
-                & $taskPython -c 'import importlib.util; modules = ["PIL.Image", "pydantic_core", "numpy", "scipy"]; [__import__(m) for m in modules if importlib.util.find_spec(m.split(".")[0])]' 2>$null
+                & $taskPython $taskHelper probe 2>$null
                 $taskValid = $LASTEXITCODE -eq 0
             }
+            $ErrorActionPreference = 'Stop'
         }
         if (-not $taskValid) {
             $taskSource = (Resolve-Path -LiteralPath $taskVenv).Path
@@ -53,12 +59,21 @@ try {
         }
     }
     if (-not (Test-Path -LiteralPath $taskPython)) {
-        Invoke-Checked $PythonPath @('-m', 'venv', '--without-pip', $taskVenv)
+        Invoke-Checked $PythonPath @('-m', 'venv', $taskVenv)
     }
-    Invoke-Checked $PythonPath @('-m', 'pip', '--python', $taskPython, 'install', '--cache-dir', '.tmp/pip-cache', 'pip', '-e', '.[dev]', '-e', './frontend/image-context[test]')
+    Invoke-Checked $taskPython @('-m', 'ensurepip', '--upgrade')
+    Invoke-Checked $taskPython @('-m', 'pip', 'install', '--cache-dir', '.tmp/pip-cache', '--upgrade', 'pip')
+    Invoke-Checked $taskPython @('-m', 'pip', 'install', '--cache-dir', '.tmp/pip-cache', '-e', '.[dev]', '-e', './frontend/image-context[test]')
     Invoke-Checked $taskPython @('-m', 'pip', 'check')
-    Invoke-Checked $taskPython @('-c', 'from PIL import Image; import pydantic_core, scipy, factcheck.api, image_context.api; print("Backend, OCR and native imports verified")')
-    Write-Host 'Setup complete. Both Python services are installed in the root .venv.'
+    Invoke-Checked $taskPython @($taskHelper, 'verify')
+    Invoke-Checked $taskPython @($taskHelper, 'configure')
+    if (-not $SkipNode) {
+        $taskNpm = (Get-Command npm.cmd -ErrorAction Stop).Source
+        foreach ($taskProject in @('frontend', 'extension', 'reddit-bot')) {
+            Invoke-Checked $taskNpm @('--prefix', $taskProject, 'ci', '--cache', (Join-Path $taskTemp 'npm-cache'))
+        }
+    }
+    Write-Host 'Setup complete. Run scripts\setup-model.cmd for the local vision model.'
 } finally {
     $env:TEMP = $taskOldTemp
     $env:TMP = $taskOldTmp

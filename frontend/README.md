@@ -33,7 +33,7 @@ Do not run the host backend and Docker backend on port 8000 at the same time.
 ### Alternative: run without Docker
 
 ```powershell
-.\scripts\setup.ps1
+.\scripts\setup.cmd
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 .\.venv\Scripts\python.exe -m uvicorn factcheck.api:app --host 127.0.0.1 --port 8000
 ```

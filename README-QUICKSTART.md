@@ -11,13 +11,13 @@ Install Python 3.11+, Node.js, Ollama ([Windows](https://docs.ollama.com/windows
 On Debian/Ubuntu: `sudo apt install python3-venv tesseract-ocr`.
 
 Open a terminal in the repository (`C:\Github\IlluminarePipeline` on Windows):
+Stop any running app/dev servers before rerunning setup so Windows can replace installed packages.
 
 **Windows**
 
 ```powershell
-.\scripts\setup.ps1
-.\scripts\setup-model.ps1
-npm --prefix frontend ci
+.\scripts\setup.cmd
+.\scripts\setup-model.cmd
 ```
 
 **Linux**
@@ -28,12 +28,29 @@ bash scripts/setup-model.sh
 npm --prefix frontend ci
 ```
 
+The Windows setup installs both Python services and all three Node projects (frontend, extension,
+and Reddit bot), and creates the local `.env` files without replacing existing API keys.
+The `.cmd` launchers run PowerShell with a process-only execution-policy override; no system policy
+change is needed. You can also run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1`
+directly. Use `-SkipNode` to install only Python. Node.js 24+ is recommended for all repository tests.
+
 The model setup starts Ollama, downloads [qwen3-vl:4b-instruct](https://ollama.com/library/qwen3-vl:4b-instruct)
 (about 3.3 GB), and configures both `.env` files. On Windows, if Tesseract is installed somewhere other than
 `C:\Program Files\Tesseract-OCR`, set `TESSERACT_CMD` in `frontend/image-context/.env` to its executable.
 On Linux, Tesseract is picked up from `PATH`; set `TESSERACT_CMD` only if it is installed elsewhere.
 
-## Start the app: three commands
+## Start the app
+
+On Windows, start all three services from one terminal:
+
+```powershell
+.\scripts\start.cmd
+```
+
+Open **http://localhost:5173**. Press **Ctrl+C** in that terminal to stop the three services.
+Ollama runs separately; keep it open for local image descriptions.
+
+### Start services separately (Windows and Linux)
 
 Keep Ollama running. Open **three terminals**, each in the repository root.
 
@@ -60,7 +77,7 @@ Keep Ollama running. Open **three terminals**, each in the repository root.
 **Terminal 3 — frontend**
 
 ```powershell
-npm --prefix frontend run dev
+npm.cmd --prefix frontend run dev
 ```
 
 ```bash
