@@ -32,6 +32,21 @@ class Deps:
     reverse_image: ReverseImageSearch = field(default_factory=NullReverseImageSearch)
 
 
+def build_llm(s: Settings) -> LLM:
+    """The live backend: three adapters from the registry, one client per provider."""
+    from .llm.generic_llm import GenericLLM
+    from .llm.registry import ModelRegistry
+
+    registry = ModelRegistry(s)
+    return GenericLLM(
+        judge=registry.build(s.llm_model),
+        fast=registry.build(s.llm_fast_model),
+        search=registry.build(s.llm_search_model),
+        search_max_uses=s.web_search_max_uses,
+        research_mode=s.research_mode,
+    )
+
+
 def build_deps(settings: Settings | None = None) -> Deps:
     s = settings or load_settings()
 
@@ -49,16 +64,8 @@ def build_deps(settings: Settings | None = None) -> Deps:
         else:
             store = PostgresStore(db_url=s.postgres_url, phash_max_distance=s.phash_max_distance)
 
-    if s.llm_backend == "anthropic":
-        from .llm.anthropic_llm import AnthropicLLM
-
-        llm: LLM = AnthropicLLM(
-            model=s.llm_model,
-            api_key=s.anthropic_api_key,
-            fast_model=s.llm_fast_model,
-            search_model=s.llm_search_model,
-            search_max_uses=s.web_search_max_uses,
-        )
+    if s.live:
+        llm: LLM = build_llm(s)
     else:
         from .llm.fake import FakeLLM
 

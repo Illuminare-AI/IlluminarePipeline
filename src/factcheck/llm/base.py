@@ -30,7 +30,11 @@ class LLM(Protocol):
         media_type: str | None,
         caption: str | None,
         ocr_text: str | None,
-    ) -> ExtractionOutput: ...
+        image_description: str | None = None,
+    ) -> ExtractionOutput:
+        """`image_description` comes from the local vision model when one ran; a backend whose
+        model takes no image input uses it in place of the image."""
+        ...
 
     async def same_claim(self, a: str, b: str) -> SameClaimVerdict: ...
 

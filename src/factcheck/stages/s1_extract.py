@@ -28,7 +28,8 @@ def validate_extraction(
     )
 
 
-async def extract(post: Post, llm: LLM) -> Extraction:
+async def extract(post: Post, llm: LLM, image_description: str | None = None) -> Extraction:
     media_type = sniff_media_type(post.image) if post.image else None
-    raw = await llm.extract(post.image, media_type, post.caption, post.ocr_text)
+    extra = {"image_description": image_description} if image_description else {}
+    raw = await llm.extract(post.image, media_type, post.caption, post.ocr_text, **extra)
     return validate_extraction(raw, post.caption, post.ocr_text)

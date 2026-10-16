@@ -18,6 +18,7 @@ from ..models import (
     WebEvidence,
 )
 from ..services.factcheck_api import ClaimReview
+from . import telemetry
 from .base import WebSearchOutcome
 
 # Interface text a screenshot carries: the fake skips it the way the prompt tells the real model to.
@@ -42,11 +43,18 @@ class FakeLLM:
         self.reconcile_output = ReconcileOutput()
         self.calls: list[str] = []
 
+    def _record(self, op: str, role: str = "judge") -> None:
+        self.calls.append(op)
+        telemetry.record_call(telemetry.CallRecord(
+            provider="fake", model="fake", role=role, op=op, latency_ms=0,
+            input_tokens=0, output_tokens=0, stop_reason="end_turn",
+        ))
+
     def set_web_result(self, claim_keyword: str, outcome: WebSearchOutcome) -> None:
         self.web_results[claim_keyword.lower()] = outcome
 
-    async def extract(self, image, media_type, caption, ocr_text) -> ExtractionOutput:
-        self.calls.append("extract")
+    async def extract(self, image, media_type, caption, ocr_text, image_description=None) -> ExtractionOutput:
+        self._record("extract")
         text = "\n".join(part for part in (caption, ocr_text) if part)
         claims: list[str] = []
         for sentence in re.split(r"(?<=[.!?])\s+|\n+", text):  # OCR lines rarely end in punctuation
@@ -71,12 +79,12 @@ class FakeLLM:
         )
 
     async def same_claim(self, a: str, b: str) -> SameClaimVerdict:
-        self.calls.append("same_claim")
+        self._record("same_claim")
         norm = lambda s: re.sub(r"[^a-z0-9 ]", "", s.lower()).strip()
         return SameClaimVerdict(same=norm(a) == norm(b), reason="exact normalised match")
 
     async def match_fact_checks(self, claim, reviews: list[ClaimReview]) -> FactCheckDecision:
-        self.calls.append("match_fact_checks")
+        self._record("match_fact_checks")
         for i, r in enumerate(reviews):
             rating = r.rating.lower()
             if "false" in rating:
@@ -88,7 +96,7 @@ class FakeLLM:
         return FactCheckDecision(matches=False)
 
     async def web_evidence(self, claim: str) -> WebSearchOutcome:
-        self.calls.append("web_evidence")
+        self._record("web_evidence", "search")
         for key, outcome in self.web_results.items():
             if key in claim.lower():
                 return outcome
@@ -103,11 +111,11 @@ class FakeLLM:
         )
 
     async def reconcile_claims(self, claims: list[ClaimResult]) -> ReconcileOutput:
-        self.calls.append("reconcile_claims")
+        self._record("reconcile_claims")
         return self.reconcile_output
 
     async def check_support(self, sentences, quotes) -> SupportCheck:
-        self.calls.append("check_support")
+        self._record("check_support", "fast")
         # A sentence is "supported" if it shares a word of 5+ letters with any quote, or
         # if it is a hedge sentence about evidence.
         out = []

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 
+from ..llm import telemetry
 from ..llm.base import LLM
 from ..models import ClaimLabel, ClaimResult, Source, WebEvidence
 
@@ -33,6 +34,15 @@ def validate_web_evidence(
 async def web_evidence(claim: str, llm: LLM, caption: str | None, ocr_text: str) -> ClaimResult:
     outcome = await llm.web_evidence(claim)
     ev = validate_web_evidence(outcome.evidence, outcome.returned_urls, caption, ocr_text)
+    telemetry.mark(
+        "web_sources",
+        claim=claim,
+        proposed=len(outcome.evidence.sources),
+        kept=len(ev.sources),
+        returned_urls=len(outcome.returned_urls),
+        label_proposed=outcome.evidence.label,
+        label_kept=ev.label,
+    )
     return ClaimResult(
         claim=claim,
         label=ev.label,

@@ -10,7 +10,9 @@ import asyncio
 import contextlib
 import uuid
 
+from .config import Settings
 from .deps import Deps
+from .llm import telemetry
 from .models import Card, ClaimResult, OriginResult, Post, StageStatus
 from .services.ocr import read_image_context, read_image_text
 from .stages import (
@@ -28,11 +30,34 @@ from .summary import summarize
 from .trace import Tracer, load_replay
 
 
+def run_meta(s: Settings) -> dict:
+    """Which backend and models a check ran on. Goes into trace.json and /health."""
+    live = s.live
+    return {
+        "backend": s.llm_backend,
+        "models": {
+            "judge": s.llm_model if live else "fake",
+            "fast": s.llm_fast_model if live else "fake",
+            "search": s.llm_search_model if live else "fake",
+        },
+        "research_mode": s.research_mode if live else "fake",
+    }
+
+
 async def check(post: Post, deps: Deps) -> Card:
+    """Run one check with its own telemetry collector, so per-call records land in its trace."""
+    _, token = telemetry.activate()
+    try:
+        return await _check(post, deps)
+    finally:
+        telemetry.deactivate(token)
+
+
+async def _check(post: Post, deps: Deps) -> Card:
     s = deps.settings
     request_post = post
     check_id = uuid.uuid4().hex[:12]
-    tracer = Tracer(check_id, s.trace_dir)
+    tracer = Tracer(check_id, s.trace_dir, meta=run_meta(s))
     card = Card(check_id=check_id, analysis_mode="fake" if s.llm_backend == "fake" else "live")
 
     if s.replay_mode:
@@ -111,8 +136,14 @@ async def check(post: Post, deps: Deps) -> Card:
         tracer.flush(card, request_post)
         return card
 
-    # Stage 1: extract
-    ex, st = await run_stage("extract", s1_extract.extract(post, deps.llm), s.stage_timeout)
+    # Stage 1: extract. A text-only judge model gets the local image description in place of the image.
+    description = (
+        card.image_context.observations.description
+        if card.image_context and card.image_context.observations else None
+    )
+    ex, st = await run_stage(
+        "extract", s1_extract.extract(post, deps.llm, image_description=description), s.stage_timeout
+    )
     card.stages["extract"] = st
     tracer.record(
         "extract", input={"caption": post.caption, "ocr_text": post.ocr_text}, output=ex, error=st.detail

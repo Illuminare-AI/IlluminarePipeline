@@ -56,7 +56,7 @@ src/factcheck/
   trace.py         Per-check JSON traces and replay mode
   api.py           FastAPI: POST /check, GET /checks/{id}/trace, GET /health
   stages/          One module per stage (s0_fingerprint ... s6_assemble) + runner.py
-  llm/             LLM protocol, prompts.py, anthropic_llm.py, fake.py
+  llm/             LLM protocol (base.py), chat.py adapter interface, providers/, generic_llm.py, prompts.py, fake.py
   services/        fingerprint, factcheck_api, detector, c2pa adapters
   store/memory.py  In-memory Store (default when POSTGRES_URL is empty)
   store/postgres.py  Postgres + pgvector Store: claims, verdicts, media, media_claims tables
@@ -85,11 +85,33 @@ companion OCR service. Stage 1 feeds that text to the model instead of asking it
 Send `describe_image=false` when the client already has the post text (the browser extension's
 post picker does): OCR and the detector still run on the image, the local vision description is skipped.
 
-Set `LLM_BACKEND=anthropic` and `ANTHROPIC_API_KEY` for real calls. Three models are involved:
-`LLM_MODEL` for extraction, claim matching and the cross-claim review, `LLM_SEARCH_MODEL` (default
-Sonnet 5.5) for the stage 4 web research loop, which is the slowest call, and `LLM_FAST_MODEL` for
-structuring and yes/no checks. `WEB_SEARCH_MAX_USES` caps searches per claim; each one adds a
-fetch-and-read round trip, so it is the main latency knob. Add `FACTCHECK_API_KEY`
+Set `LLM_BACKEND=live` and the provider keys for real calls (`anthropic` is accepted as an alias
+of `live`). The live backend is `GenericLLM` (`llm/generic_llm.py`), which assembles the prompts
+once and talks to provider adapters through the `ChatModel` interface in `llm/chat.py`. Model
+settings are provider-prefixed specs resolved by `llm/registry.py`:
+
+| Prefix | Adapter | Key | Structured output |
+|---|---|---|---|
+| `anthropic:` | Anthropic SDK | `ANTHROPIC_API_KEY` | native parse |
+| `openai:` | OpenAI SDK (`OPENAI_BASE_URL` overrides the endpoint) | `OPENAI_API_KEY` | strict JSON schema |
+| `gemini:` | OpenAI-compatible endpoint | `GEMINI_API_KEY` | JSON schema, not strict |
+| `ollama:` | OpenAI-compatible endpoint at `OLLAMA_URL` | none | JSON schema, not strict |
+| `kimi:` | Moonshot, OpenAI-compatible | `MOONSHOT_API_KEY` | JSON asked for in the prompt |
+| `groq:`, `openrouter:` | OpenAI-compatible | `GROQ_API_KEY`, `OPENROUTER_API_KEY` | JSON asked for in the prompt |
+
+A bare `claude-*` name still resolves to Anthropic. Whatever the mode, every reply is validated
+against the Pydantic schema and one repair attempt sends the validation error back before the
+call fails. Models that take no image input (built-in list plus `LLM_TEXT_ONLY_MODELS`) get the
+local vision description in place of the image at extraction, and the trace records an
+`image_dropped` mark.
+
+Three roles are involved: `LLM_MODEL` (judge) for extraction, claim matching and the
+cross-claim review, `LLM_SEARCH_MODEL` for the stage 4 web research loop, which is the slowest
+call, and `LLM_FAST_MODEL` for structuring and yes/no checks. `RESEARCH_MODE=native` (the only
+mode so far) uses the search model's own server-side search tool, so the search role must be an
+`anthropic:` model; the other two roles can be any provider. `WEB_SEARCH_MAX_USES` caps searches
+per claim; each one adds a fetch-and-read round trip, so it is the main latency knob. Add
+`FACTCHECK_API_KEY`
 to enable stage 3 and `DETECTOR_API_KEY` (Walter Writes, `image_detector` scope) to enable the detector. Without them those stages are
 marked `skipped` on the card rather than failing.
 
@@ -147,8 +169,36 @@ evidence. `find_claims_by_keyword` is full-text search and is not part of the `S
 ## Eval harness
 
 ```bash
-.venv/bin/python eval/run_eval.py
+.venv/bin/python eval/run_eval.py                                   # backend from .env
+.venv/bin/python eval/run_eval.py --backend anthropic --repeat 3 --out eval/results.jsonl
+.venv/bin/python eval/run_eval.py --model anthropic:claude-sonnet-5-5 --label sonnet --out eval/results.jsonl
+.venv/bin/python eval/run_eval.py --models openai:gpt-5,kimi:kimi-k2 --search-model anthropic:claude-sonnet-5-5 --out eval/results.jsonl
+.venv/bin/python eval/run_eval.py --ids false-urgent,moon-landing
 ```
 
-Add cases to `eval/cases.jsonl`. Include authentic images with `"must_not_accuse": true` so a
-false AI accusation fails the run. Re-run after every change to `llm/prompts.py`.
+Every case in `eval/cases.jsonl` runs through `check()` and is scored: first-claim label against
+`expected_label`, extracted claims against `expected_claims` (fuzzy match), origin status,
+persuasion tags, `must_not_accuse`, `forbidden_claim_terms`, and no failed or timed-out stages.
+Label and claim scores only fail the run on a live backend; the fake backend extracts by rule and
+knows no facts, so on it they are printed as unscored. Replay mode is forced off so a model
+comparison never serves another model's cached card. `--models` runs the case set once per spec,
+with that spec in every role a role flag does not pin, and prints a comparison table at the end;
+a spec the registry cannot serve (missing key, or a non-Anthropic search model in native mode)
+is reported as skipped and the rest still run.
+
+`--out` appends one JSON line per case run (run label, models, score, per-stage ms, call counts,
+tokens, sources proposed vs kept, self-check sentences in vs out), so several model runs
+accumulate in one file. The printed summary gives label accuracy, claim match rate, the source
+hallucination rate (sources the model proposed that the URL allowlist dropped), the self-check
+drop rate, calls and tokens per check, and p50/p95 wall clock and per-stage times.
+
+Re-run after every change to `llm/prompts.py`. Include authentic images with
+`"must_not_accuse": true` so a false AI accusation fails the run.
+
+## Telemetry
+
+Every model request is recorded (`llm/telemetry.py`): provider, model, role (`judge`, `fast`,
+`search`), protocol method, latency, tokens, stop reason and error. Records are collected per
+check and written to `trace.json` under `calls`, next to `marks` (code-side measurements such as
+how many stage 4 sources survived validation) and a header with the backend and the model per
+role. `/health` reports the same model header. Nothing is added to the card.

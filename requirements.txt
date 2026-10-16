@@ -2,8 +2,10 @@
 # Derived from imports in src/, tests/ and eval/ plus pyproject.toml.
 # Install with: pip install -r requirements.txt
 
-# LLM backend (src/factcheck/llm/anthropic_llm.py)
+# Model providers (src/factcheck/llm/providers/). The OpenAI SDK also serves Kimi, Ollama, Groq,
+# OpenRouter and Gemini through their OpenAI-compatible endpoints.
 anthropic>=1.0
+openai>=1.60
 
 # HTTP API (src/factcheck/api.py); python-multipart is needed for File/Form uploads
 fastapi>=0.115

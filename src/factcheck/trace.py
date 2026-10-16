@@ -14,6 +14,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from .llm import telemetry
 from .models import Card, Post, StageStatus
 
 
@@ -42,10 +43,13 @@ def _jsonable(value: Any) -> Any:
 
 
 class Tracer:
-    def __init__(self, check_id: str, root: str | Path) -> None:
+    def __init__(self, check_id: str, root: str | Path, meta: dict[str, Any] | None = None) -> None:
         self.check_id = check_id
         self.dir = Path(root) / check_id
         self.events: list[dict] = []
+        self.meta = meta or {}
+        """Run metadata: backend, model per role, research mode. Written at the top of trace.json
+        so a trace can be attributed to the configuration that produced it."""
 
     def record(self, stage: str, *, input: Any = None, output: Any = None, error: str | None = None):
         self.events.append(
@@ -60,9 +64,14 @@ class Tracer:
 
     def flush(self, card: Card, post: Post) -> None:
         self.dir.mkdir(parents=True, exist_ok=True)
-        (self.dir / "trace.json").write_text(
-            json.dumps({"check_id": self.check_id, "events": self.events}, indent=2)
-        )
+        col = telemetry.current()
+        payload = {
+            "check_id": self.check_id,
+            **self.meta,
+            "events": self.events,
+            **(col.as_dict() if col else {"calls": [], "marks": []}),
+        }
+        (self.dir / "trace.json").write_text(json.dumps(payload, indent=2))
         (self.dir / "card.json").write_text(card.model_dump_json(indent=2))
         replay_dir = self.dir.parent / "replay"
         replay_dir.mkdir(parents=True, exist_ok=True)

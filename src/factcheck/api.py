@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from .deps import Deps, build_deps
 from .models import Card, Post
-from .pipeline import check
+from .pipeline import check, run_meta
 from .trace import load_trace
 
 logging.basicConfig(level=logging.INFO)
@@ -52,7 +52,7 @@ def create_app(deps: Deps | None = None) -> FastAPI:
     @app.get("/health")
     async def health():
         s = app.state.deps.settings
-        return {"ok": True, "llm_backend": s.llm_backend, "replay_mode": s.replay_mode}
+        return {"ok": True, "llm_backend": s.llm_backend, "replay_mode": s.replay_mode, **run_meta(s)}
 
     @app.post("/check", response_model=Card)
     async def check_multipart(
